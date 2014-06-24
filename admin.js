@@ -105,7 +105,7 @@ exports.shutdown = function (graceful,callback) {
    return task;
 }
 
-exports.version = function (graceful,callback) {
+exports.version = function (callback) {
    var task = this.newTask(callback);
    this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'version'}});
    acceptSerialWithError(this.packets, 'ok', taskError(task, function (V){ return V.args.line }));

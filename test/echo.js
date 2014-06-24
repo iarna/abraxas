@@ -10,13 +10,14 @@ echolib.socket  = require('./stub-socket');
 
 function echoTest(todo) {
     return function (t) {
-        t.plan(6);
+        t.plan(7);
         var argsOrVal = function (k) { return typeof k == 'number' ? todo.args[k] : k }
         var task = echolib.echo.apply(echolib,todo.args);
         var lastAccept = echolib.packets.getLastAccept();
-        t.is(lastAccept.kind, 'ECHO_RES', 'Waiting for an echo response');
+        t.is(lastAccept.length, 1, 'Only waiting for one packet');
+        t.is(lastAccept[0].kind, 'ECHO_RES', 'Waiting for an echo response');
         var result = {body: 'test'};
-        lastAccept.callback(result);
+        lastAccept[0].callback(result);
         t.is(task.result,result.body, 'Accepted result body');
         t.is(task.callback, argsOrVal(todo.callback), 'Expected callback');
         var out = echolib.socket.getLastWrite();

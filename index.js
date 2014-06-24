@@ -80,7 +80,7 @@ var Abraxas = exports.Client = function (options) {
     this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
     this.packets.acceptSerial('OPTION_RES', function (data) {
         if (data.args.option == 'exceptions') {
-            self.options.exceptions = true;
+            self.exceptions = true;
         }
     });
 

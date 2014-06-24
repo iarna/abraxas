@@ -118,7 +118,7 @@ Worker.dispatchWorker = function (job) {
     });
 
     task.outbound.on('error', function (msg) {
-        if (self.options.exceptions) {
+        if (self.exceptions) {
             self.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:msg});
         }
         else {

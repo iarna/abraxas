@@ -4,81 +4,168 @@ Abraxas
 A gearman client, worker and server module implemented on top of gearman-protocol
 for full end-to-end streaming support.
 
-Remaining Work
---------------
-
-This was published on 6/23.  Soon, I expect:
-
-* Option for maximum number of jobs to run at a time per connection and/or per registered worker. Most gearman libraries only allow one per connection, but that's neither a limitation of the protocol nor the server. We can handle it trivially.
-* Tests for the client/worker API layer. (The protocol layer is already fully tested.)
-* Documentation
-* The server library, along with a trivial gearman server implementation.
-* A small wrapper to provide multi-server support.
-* Expose timeouts-- on-connect, reply-to-command, complete-job.
-  * Some mechanism to hook any kind of network error, the multi-server variation would want this.
-* Ensure errors are exposed everywhere-- socket, parser, emitter, etc
-
-Longer term:
-
-* Background job durability
-* Sugar library that adds some basic conventions to make Gearman easier, eg:
-  * Consistent job naming, complex data types as arguments, etc.
-* Gearman server clustering--
-  * Share responsibility for keeping background jobs in the queue
-  * Route jobs to other servers if the local server is overloaded
-
-Examples
+Synopsis
 --------
 
-    var Gearman = require('abraxas');
+```javascript
+var Gearman = require('abraxas');
+var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncoding:'utf8' });
 
-    var client = new Gearman.Client({host:'127.0.0.1',port:4730,defaultEncoding: 'utf8'});
-
-    // Register a worker-- tasks are promises that resolve to the payload
-    client.registerWorker("reverse", function(task) {
-        // Returned promises are reified and used as the WORK_COMPLETE packet.
-        return task.then(function(payload) {
-            // If the promise results in an error, a WORK_EXCEPTION packet will be sent.
-            if (!payload) throw "Can't reverse nothing";
-            return payload.split("").reverse().join("");
-        });
+client.registerWorker("toUpper", function(task) {
+    // Tasks can be used as promises.
+    // Return values can be plain values, promises or streams.
+    return task.then(function(payload) {
+        return payload.toUpperCase();
     });
+});
 
-    // Tasks are also streams that when read from, read the payload and
-    // when written to, produce WORK_DATA packets.
-    // We specify an encoding to sure we're working with buffers.
-    client.registerWorker("gzip", {encoding: 'buffer'}, function(task) {
-        task.pipe(zlip.createGzip()).pipe(task);
-    });
+// or
+var through = require('through2');
+client.registerWorker("toUpper", function(task) {
+    // Tasks can be used as bidirectional pipes. Read the payload from
+    // the client, write the result back to the client.
+    task.pipe(through(function(data,enc,done) { this.push(data.toUpperCase(),enc); done() })).pipe(task);
+});
 
-    // We can submit jobs and get our answer with node style callbacks
-    client.submitJob('reverse', 'test string', function(error, result) {
-        if (error) console.error(error);
-        console.log("Reversed:", result);
-    });
+// Submitting jobs can use the traditional Node style callbacks
+client.submitJob('toUpper', 'test string', function(error, result) {
+    if (error) console.error(error);
+    console.log("Upper:", result);
+});
 
-    // Or promises
-    client.submitJob('reverse', 'test string').then(function(result){
-        console.log("Reversed:", result);
-    });
+// or as promises
+client.submitJob('toUpper', 'test string').then(function (result) {
+    console.log("Upper:", result);
+});
 
-    // Or as a stream
-    client.submitJob('reverse', 'test string')
-          .on('error', function (error) { console.error(error) })
-          .pipe(process.stdout);
+// or as streams
+client.submitJob('toUpper', 'test string').pipe(process.stdout);
 
-    // We can pass streams as the body
-    client.submitJob('reverse', process.stdin).then(function(result) {
-        console.log("Reversed:", result);
-    });
+// or as bidirectional streams
+process.stdin.pipe(client.submitJob('toUpper')).pipe(process.stdout);
+```
 
-    // We can pass no body and instead pipe into the return value of submitJob
-    process.stdin.pipe(client.submitJob('reverse')).then(function(result) {
-        console.log("Reversed:", result);
-    })
-    .catch(function(error) {
-        console.log(error);
-    });
+Purpose
+-------
 
-    // We can pipe from one job to another
-    client.submitJob('reverse','testing').pipe(client.submitJob('reverse')).pipe(process.stdout);
+Abraxas is aiming to be a streaming Gearman client/worker/server
+implementation for Node.js.  It's built with an eye toward the ease of use
+of the API for end users.  This means supporting streams and promises in an
+intuitive and transparent fashion, in addition to a traditional callback
+based API.
+
+The Abraxas server implementation:
+
+* Aims to both provide a much easier to install Gearman server. (The C++
+  version requires recent versions of Boost.)
+* Allow for apps using Gearman for APIs to be entirely self contained when
+  an external Gearman server is not provided.
+* Act as a test bed for experimental features--
+  * Fully functional SUBMIT_JOB_EPOCH and SUBMIT_JOB_SCHED implementations
+  * Client streaming
+  * Background job queue replication to support redudency across servers
+
+
+API
+---
+
+### Connecting
+
+```javascript
+var Gearman = require('abraxas');
+var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncoding:'utf8' });
+```
+
+* **var client = Gearman.Client([options][,callback])**
+
+  **options** (optional) is an object with properties of:
+
+  * *host* (default: 127.0.0.1)
+  * *port* (default: 4730)
+  * *defaultEncoding* (default: buffer) -- The stream encoding to use for client and worker payloads, unless otherwise specified.
+  * *debug* -- If true, unknown or unexpected packets will be logged with
+    console.error.  You can achieve the same result by listening for the
+    'unknown-packet' event.
+  * *trafficDump* -- If true, emits read and write events for the raw
+    buffers being sent over the wire.  If no listeners for these events
+    are configured the buffers will be printed with console.error.
+  * *packetDump* -- If true, behaves the same as trafficDump but instead emits the parsed packets.
+
+  **callback** (optional) will be called once the socket is established by
+  `net.connect`.  There is, however, no requirement that you wait for the
+  connection-- any commands issued prior to the connection being established
+  will be buffered.
+
+* **var task = client.echo([options][,data][,callback])**
+
+  Sends **data** to the server which the server then sends back. This is
+  useful as a "ping" type utility to verify that the connection is still
+  live and the server responding.
+
+  **options** (optional) is an object with properties of:
+
+  * *encoding* (default: client.options.defaultEncoding) -- This is the
+    stream encoding to use for the **data** and the response.
+  * *accept* -- This is the options to pass to the response stream constructor.
+  * *transmit* -- This is the options to pass to the payload stream constructor.
+
+  **data** (optional; if not used you must write to the task object) is a buffer or string to get echoed back to you by the server.
+
+  **callback** (optional; if not used, you should use task as a stream or pipe) is a *function (err, data)* that will be called
+  with the result from the server. If the callback is passed in then the stream CANNOT be used as a stream or pipe.
+
+### Tasks
+
+Client API calls return Task objects and Workers are passed Tasks when new
+work is acquired.  Tasks are duplex streams.  Tasks are also bluebird Promises.
+
+With client Tasks, data written to the stream is sent as the payload of the
+job.  When reading from a stream, the result from the worker is read.
+
+Exceptions / failures from the worker will be emitted as errors. Warnings
+from the worker are emitted as `warn` events and status updates as `status`
+events.
+
+With worker Tasks, this is reversed-- data read from the stream is the
+payload, data written to the stream is the result.
+
+Using a task as a promise will result in the promise being resolved with the
+concatenated value of the stream. Exceptions and job failures will result
+in the promise being rejected.
+
+### Client
+
+* **var task = client.submitJob(func[,options][,data][,callback])**
+
+* **var task = client.submitJobBg(func[,options][,data][,callback])**
+
+* **var task = client.submitJobAt(func[,options][,data][,callback])**
+
+* **var task = client.submitJobSched(func[,options][,data][,callback])**
+
+
+### Worker
+
+* **client.registerWorker(func[,options],workercb)**
+
+* **client.unregisterWorker(func)**
+
+* **client.forgetAllWorkers()**
+
+### Admin
+
+* **var task = client.status([callback])**
+
+* **var task = client.workers([callback])**
+
+* **var task = client.maxqueue(func[,maxsize][,callback])**
+
+* **var task = client.shutdown([gracefully][,callback])**
+
+* **var task = client.version([callback])**
+
+
+### Server
+
+* TODO
+

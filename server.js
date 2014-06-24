@@ -1,3 +1,9 @@
+/**
+This is currently broken. It uses a previous iteration of the internal
+architecture.  It's also no further then proof of concept.  Despite both of
+these issues, I'm including it here for historical reasons.  When work
+begins again on the server implementation this will be replaced.
+**/
 "use strict";
 var net = require('net');
 var util = require('util');

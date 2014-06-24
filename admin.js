@@ -93,7 +93,7 @@ var taskError = function (task,valuehandler) {
 
 exports.maxqueue = function (func,maxsize,callback) {
    var task = this.newTask(callback);
-   this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'maxqueue '+func+' '+maxsize}});
+   this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'maxqueue '+func+(maxsize?' '+maxsize:'')}});
    acceptSerialWithError(this.packets, 'ok', taskError(task));
    return task;
 }

@@ -111,10 +111,3 @@ exports.version = function (callback) {
    acceptSerialWithError(this.packets, 'ok', taskError(task, function (V){ return V.args.line }));
    return task;
 }
-
-/*
-    'error': { args: ['code','message'] },
-    'ok': { args: ['line'] },
-    'line': { args: ['line'] },
-    'block-complete': { args: [] }
-*/

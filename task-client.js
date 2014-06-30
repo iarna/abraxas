@@ -9,6 +9,16 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
     this.options = options;
     var accept = new stream.PassThrough(options.accept);
     var transmit = new stream.PassThrough(options.transmit);
+
+    if (! options.encoding) options.encoding = this.options.defaultEncoding;
+    if (options.encoding == 'buffer') options.encoding = null;
+    if (options.encoding && (!options.accept || !options.accept.encoding)) {
+        accept.setEncoding(options.encoding);
+    }
+    if (options.encoding && (!options.transmit || !options.transmit.encoding)) {
+        transmit.setEncoding(options.encoding);
+    }
+
     Task.call(this,accept,transmit,options);
     if (callback) {
         this.pipe(concat(function(data) { callback(null,data) }));

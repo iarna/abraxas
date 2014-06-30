@@ -84,6 +84,7 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   * *port* (default: 4730)
   * *defaultEncoding* (default: buffer) -- The stream encoding to use for
     client and worker payloads, unless otherwise specified.
+  * *maxJobs* (default: 1) -- The maximum number of jobs to handle at once.
   * *debug* -- If true, unknown or unexpected packets will be logged with
     console.error.  You can achieve the same result by listening for the
     'unknown-packet' event.

@@ -13,6 +13,13 @@ exports.construct = function () {
     this._workers = {};
     this._workersCount = 0;
 
+    this._activeJobs = {};
+    this._activeJobsCount = 0;
+
+    if (!this.options.maxJobs) {
+        this.options.maxJobs = 1;
+    }
+
     var self = this;
     this.packets.acceptDefault('NO_JOB', function(data) {
         if (!self.socket) return;
@@ -38,6 +45,20 @@ Worker.askForWork = function () {
         if (!self.socket) return;
         self.socket.write({kind:'request',type:packet.types['GRAB_JOB_UNIQ']});
     });
+}
+
+Worker.startWork = function (jobid) {
+    this._activeJobs[jobid] = true;
+    if (this.options.maxJobs > ++ this._activeJobsCount) {
+        this.askForWork();
+    }
+}
+
+Worker.endWork = function (jobid) {
+    delete this._activeJobs[jobid];
+    if (this.options.maxJobs > -- this._activeJobsCount) {
+        this.askForWork();
+    }
 }
 
 Worker.unregisterWorker = function (func) {
@@ -106,6 +127,8 @@ Worker.dispatchWorker = function (job) {
     var worker = self._workers[job.args.function];
     if (!worker) return packets.emit('unknown',job);
 
+    this.startWork(jobid);
+
     var options = {jobid: jobid, uniqueid: job.args.uniqueid, client: this};
     if (worker.options.encoding) options.encoding = worker.options.encoding;
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
@@ -125,13 +148,14 @@ Worker.dispatchWorker = function (job) {
             self.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:jobid}, body:msg});
             self.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:jobid}});
         }
+        self.endWork(jobid);
     });
 
     task.outbound.on('end', function () {
         var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
         if (task.lastChunk) end.body = task.lastChunk;
         self.socket.write(end, options.encoding);
-        self.askForWork();
+        self.endWork(jobid);
     });
     
     try {

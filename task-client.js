@@ -13,6 +13,7 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
     Task.call(this,accept,transmit,options);
     // If we were given a callback then we aren't readable.
     if (callback) accept.end();
+    if (options.nobody) transmit.end();
 }
 util.inherits(ClientTask, Task);
 

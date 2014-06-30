@@ -7,16 +7,15 @@ var streamToBuffer = require('./stream-to-buffer');
 exports.getStatus = function (jobid,callback) {
     var self = this;
 
-    var task = this.newTask(callback,{accept: {objectMode: true}});
+    var task = this.newTask(callback,{accept: {objectMode: true}, nobody: true});
 
     self.packets.acceptByJobOnce('STATUS_RES', jobid, function (data) {
-        var status = copy(data.args);
-        status.known = Number(status.known);
-        status.running = Number(status.running);
-        status.complete = Number(status.complete);
-        var total = Number(status.total);
-        delete status.total;
-        status.complete = total ? status.complete / total : status.complete;
+        var status = {};
+        status.known = Number(data.args.known);
+        status.running = Number(data.args.running);
+        var complete = Number(data.args.complete);
+        var total = Number(data.args.total);
+        status.complete = total ? complete / total : complete;
         task.acceptResult(status);
     });
 

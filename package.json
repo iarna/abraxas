@@ -1,9 +1,14 @@
 {
   "name": "abraxas",
   "description": "A streaming gearman client / worker / server (as you choose)",
-  "keywords": ["gearman","streaming","client","worker"],
+  "keywords": [
+    "gearman",
+    "streaming",
+    "client",
+    "worker"
+  ],
   "author": "Rebecca Turner <me@re-becca.org> (http://re-becca.org)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "dependencies": {
     "gearman-packet": "^0.2.1",
     "through2": "^0.4.1",

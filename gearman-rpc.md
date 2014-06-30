@@ -1,3 +1,6 @@
+*Please note, this is just notes that I've written to myself. They describe
+a hypothetical library built on top of Abraxas.  Not something bundled.*
+
 Gearman is a *schemaless job server*, with realtime and durable background
 job execution.
 

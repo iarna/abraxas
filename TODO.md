@@ -1,6 +1,3 @@
-* Option for maximum number of jobs to run at a time per connection. Most
-  gearman libraries only allow one per connection, but that's neither a
-  limitation of the protocol nor the server.  We can handle it trivially.
 * Tests for the client/worker API layer. (The protocol layer is already fully tested.)
 * The server library, along with a trivial gearman server implementation.
 * Support for multiple servers with automatic failover and reconnection.

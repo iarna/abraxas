@@ -48,7 +48,7 @@ exports.submitJob = function (func,options,data,callback) {
         if (options.priority=='high') type += '_HIGH';
         else if (options.priority=='low') type += '_LOW';
 
-        packets.acceptSerialWithErro('JOB_CREATED', function (error,data) {
+        packets.acceptSerialWithError('JOB_CREATED', function (error,data) {
             if (error) return task.acceptError(error);
             self.handleJobResult(task,func,trace,packets,data);
         });

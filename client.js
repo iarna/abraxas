@@ -165,6 +165,7 @@ exports.submitJobSched = function (func,time,options,data,callback) {
 exports.handleJobResult = function (task,func,trace,packets,data) {
     var jobid = data.args['job'];
     var out = new stream.PassThrough();
+    task.emit('created');
     task.jobid = jobid;
     task.acceptResult(out);
     var cancel = function () {

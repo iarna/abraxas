@@ -7,12 +7,13 @@ var Task = require('./task');
 var ClientTask = module.exports = function ClientTask(callback,options) {
     if (!options) options = {};
     this.options = options;
-    this.callback = callback;
     var accept = new stream.PassThrough(options.accept);
     var transmit = new stream.PassThrough(options.transmit);
     Task.call(this,accept,transmit,options);
-    // If we were given a callback then we aren't readable.
-    if (callback) accept.end();
+    if (callback) {
+        this.pipe(concat(function(data) { callback(null,data) }));
+        this.on('error', callback);
+    }
     if (options.nobody) transmit.end();
 }
 util.inherits(ClientTask, Task);
@@ -20,24 +21,11 @@ util.inherits(ClientTask, Task);
 // Emits error, warn and status events
 
 ClientTask.prototype.acceptError = function (error) {
-    if (this.callback) {
-        this.callback(error);
-    }
-    else {
-        this.emit('error', error);
-    }
+    this.emit('error', error);
 }
 
 ClientTask.prototype.acceptResult = function (result) {
-    var callback = this.callback;
-    if (callback && result.pipe) {
-        result.pipe(concat(function(data){ callback(null,data) }));
-        result.on('error', callback);
-    }
-    else if (callback) {
-        callback(null,result);
-    }
-    else if (result == null) {
+    if (result == null) {
         this._reader.end();
     }
     else if (result.pipe) {

@@ -162,9 +162,8 @@ Exceptions / failures from the worker will be emitted as `error` events.
 Warnings from the worker will be emitted as `warn` events with a single
 string argument containing the warning.
 
-Status updates from the worker will be emitted as `status` events with the
-same arguments as the result of the
-
+Status updates from the worker will be emitted as `status` events with
+percentage completion as the argument.
 
 Using a task as a promise will result in the promise being resolved with the
 concatenated value of the stream. Exceptions and job failures will result

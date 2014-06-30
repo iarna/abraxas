@@ -176,12 +176,10 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
         packets.unacceptByJob('WORK_COMPLETE', jobid);
     };
     packets.acceptByJob('WORK_STATUS', jobid, function (data) {
-        var status = copy(data.args);
-        status.complete = Number(status.complete);
-        var total = Number(status.total); delete status.total;
-        status.complete = total ? status.complete / total : status.complete;
-        delete status.total;
-        task.emit('status',status);
+        var complete = Number(data.args.complete);
+        var total = Number(data.args.total);
+        var percent = complete = total ? complete / total : complete;
+        task.emit('status',percent);
     });
     var lastWarning;
     packets.acceptByJob('WORK_WARNING', jobid, function (data) {

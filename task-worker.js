@@ -13,10 +13,6 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     this.lastChunk = null;
     this.length    = payload.length;
     this.outbound  = new stream.PassThrough(options.response);
-    delete options.response;
-    delete options.jobid;
-    delete options.uniqueid;
-    delete options.client;
     Task.call(this,payload,this.outbound,options);
 }
 util.inherits(WorkerTask, Task);

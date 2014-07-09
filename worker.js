@@ -127,8 +127,8 @@ Worker.forgetAllWorkers = function () {
 Worker.dispatchWorker = function (job) {
     var self = this;
     var jobid = job.args.job;
-    var worker = self._workers[job.args.function];
-    if (!worker) return packets.emit('unknown',job);
+    var worker = this._workers[job.args.function];
+    if (!worker) return this.packets.emit('unknown',job);
 
     this.startWork(jobid);
 

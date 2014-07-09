@@ -69,6 +69,7 @@ Worker.unregisterWorker = function (func) {
     delete this._workers[func];
     if (-- this._workersCount == 0) {
         this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
+        this.connection.unref();
     }
     this.socket.write({kind:'request',type:packet.types['CANT_DO'],args:{functon: func}});
 }
@@ -81,6 +82,7 @@ Worker.registerWorker = function (func, options, worker) {
     else {
         if (this._workersCount++ == 0) {
             var self = this;
+            this.connection.ref();
             this.packets.on('JOB_ASSIGN_UNIQ', this.onJobAssign = function(job) { self.dispatchWorker(job) });
         }
     }
@@ -119,6 +121,7 @@ Worker.forgetAllWorkers = function () {
     this._workersCount = 0;
     this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
     this.socket.write({kind:'request',type:packet.types['RESET_ABILITIES']});
+    this.connection.unref();
 }
 
 Worker.dispatchWorker = function (job) {

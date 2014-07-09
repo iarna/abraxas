@@ -12,7 +12,15 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     this.client    = options.client;
     this.lastChunk = null;
     this.length    = payload.length;
+    if (! options.encoding) options.encoding = this.options.defaultEncoding;
+    if (options.encoding == 'buffer') delete options.encoding;
+    if (options.encoding) {
+        payload.setEncoding(options.encoding);
+    }
     this.outbound  = new stream.PassThrough(options.response);
+    if (options.encoding && (!options.response || !options.response.encoding)) {
+        this.outbound.setEncoding(options.encoding);
+    }
     Task.call(this,payload,this.outbound,options);
 }
 util.inherits(WorkerTask, Task);

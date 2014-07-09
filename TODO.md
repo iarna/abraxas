@@ -1,9 +1,27 @@
+Server
+
+The server implementation is very much just a proof of concept, it's
+missing many important things:
+
+* Spooling jobs to disk as they come in, rather then memory (replace bufr).
+* Job persistence for background jobs.
+* Job priority levels.
+* Job queueing is currently FIFO, but kind of only by accident.
+* Job queueing currently involves scanning the entire list of jobs. This is
+  obviously non-optimal from a scaling point of view.
+* Admin commmands!
+* A nice happy refactor now that something's there.
+* Worker failures need retries.
+* Client failures need to actually abort the job.
+* Worker failure retries should do the exponential backoff dance, rather then just
+  dequeueing. (Dequeueing when you've promised to run something is BAD.)
+
+General
+
 * Tests for the client/worker API layer. (The protocol layer is already fully tested.)
-* The server library, along with a trivial gearman server implementation.
 * Support for multiple servers with automatic failover and reconnection.
 * Expose timeouts-- on-connect, reply-to-command, complete-job.
   * Some mechanism to hook any kind of network error, the multi-server variation would want this.
-* Ensure errors are exposed everywhere-- socket, parser, emitter, etc
 * Consider supporting the extensions that the C++ gearmand has added.
 
 Longer term:

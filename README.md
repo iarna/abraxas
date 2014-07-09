@@ -425,7 +425,16 @@ TO BE IMPLEMENTED
 
 ### Server
 
-* TODO
+```javascript
+var Gearman = require('abraxas');
+Gearman.Server.listen({port: 4730});
+```
+
+TO BE DOCUMENTED
+
+But really, that above is about all there is to it right now. It takes the same
+types of debugging options as the client, eg, trafficDump, packetDump. It should
+work, but see [TODO.md](TODO.md).
 
 ### Glossary
 

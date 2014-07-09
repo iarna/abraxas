@@ -27,8 +27,6 @@ var AbraxasClient = module.exports = function (options) {
         }
     });
 
-    this._activeTasks = 0;
-
     require('./worker').construct.call(this);
 }
 util.inherits( AbraxasClient, AbraxasSocket );
@@ -56,9 +54,8 @@ AbraxasClient.prototype.newTask = function (callback,options) {
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
     if (options.encoding == 'buffer') delete options.encoding;
     var task = new ClientTask(callback,options);
-    // TODO: This needs to play nice with workers tracking ref/unref
-    if (!this._activeTasks++) { this.connection.ref() }
+    this.ref();
     var self = this;
-    task.on('end',function(){ if (!--self._activeTasks) { self.connection.unref() } });
+    task.on('end',function(){ self.unref() });
     return task;
 }

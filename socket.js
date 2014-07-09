@@ -28,6 +28,7 @@ var AbraxasSocket = module.exports = function (options) {
 
     this.connection = options.socket;
 
+    this.refCount = 0;
     this.connection.unref();
 
     if (this.connection.remoteAddress) {
@@ -113,4 +114,12 @@ AbraxasSocket.prototype.emitRead = function (stuff) {
 AbraxasSocket.prototype.emitWrite = function (stuff) {
     if (events.EventEmitter.listenerCount(this,'write')) return this.emit('write',stuff);
     console.error(this.clientid,'WRITE',Buffer.isBuffer(stuff)?stuff:debugPacket(stuff));
+}
+
+AbraxasSocket.prototype.ref = function () {
+    if (this.refCount++ == 0) { this.connection.ref() }
+}
+
+AbraxasSocket.prototype.unref = function () {
+    if (--this.refCount == 0) { this.connection.unref() }
 }

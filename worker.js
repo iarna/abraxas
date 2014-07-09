@@ -155,9 +155,11 @@ Worker.dispatchWorker = function (job) {
     });
 
     task.outbound.on('end', function () {
-        var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
-        if (task.lastChunk) end.body = task.lastChunk;
-        self.socket.write(end, options.encoding);
+        if (self.socket) {
+            var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
+            if (task.lastChunk) end.body = task.lastChunk;
+            self.socket.write(end, options.encoding);
+        }
         self.endWork(jobid);
     });
     

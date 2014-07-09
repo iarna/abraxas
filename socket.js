@@ -90,6 +90,12 @@ AbraxasSocket.prototype.disconnect = function () {
     this.socket = this.connection = null;
 }
 
+AbraxasSocket.prototype.destroy = function () {
+    if (this.connection) this.connection.destroy();
+    this.socket = this.connection = null;
+}
+
+
 AbraxasSocket.prototype.emitError = function (error) {
     if (events.EventEmitter.listenerCount(this,'error')) return this.emit('error',error);
     throw error;

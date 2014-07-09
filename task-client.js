@@ -11,7 +11,7 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
     var transmit = new stream.PassThrough(options.transmit);
 
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
-    if (options.encoding == 'buffer') options.encoding = null;
+    if (options.encoding == 'buffer') delete options.encoding;
     if (options.encoding && (!options.accept || !options.accept.encoding)) {
         accept.setEncoding(options.encoding);
     }

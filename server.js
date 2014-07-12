@@ -19,6 +19,7 @@ var Server = module.exports = function (options) {
     this.clients = {};
     this.clientMaxId = 0;
     this.workers = {};
+    this.workersCount = {};
     this.jobs = {};
     this.jobMaxId = 0;
     var self = this;
@@ -56,15 +57,43 @@ Server.prototype.acceptConnection = function (socket) {
         console.error(e);
         client.destroy();
     });
+    var self = this;
+    ['add-worker', 'remove-worker', 'get-status', 'submit-job', 'grab-job',
+     'work-complete', 'work-data', 'work-warning', 'work-exception',
+     'update-status'].forEach(function(event) {
+        var methodname = event.replace(/-([a-z])/,function(match,p1){ return p1.toUpperCase() });
+        var method = self[methodname];
+        client.on(event, function () { method.apply(self,arguments) });
+    });
+    client.on('disconnect', function () { self.recordDisconnect(client) });
 }
 Server.prototype.addWorker = function (func, client, options) {
-    if (! this.workers[func]) this.workers[func] = {};
-    this.workers[func][client.id] = {client: client, options: options};;
+    if (! this.workers[func]) { this.workers[func] = {}; this.workersCount[func] = 0 }
+    if (this.workers[func][client.id]) {
+        this.emit('warning', client.clientid+' registered '+func+' more than once');
+    }
+    else {
+        client.addWorker(func);
+        this.workers[func][client.id] = {client: client, options: options};;
+        this.workersCount[func] ++;
+    }
 }
 Server.prototype.removeWorker = function (func, client) {
-    delete this.workers[func][client.id];
+    if (this.workers[func]) {
+        delete this.workers[func][client.id];
+        this.workersCount[func] --;
+        client.removeWorker(func);
+        return;
+    }
+    client.sendNoSuchWorker(func);
+}
+Server.prototype.removeAllWorkers = function (client) {
+    for (var func in client.workers) {
+        this.removeWorker(func,client);
+    }
 }
 Server.prototype.recordDisconnect = function (client) {
+    this.removeAllWorkers(client);
     // TODO: disconnect from all jobs
     delete this.clients[client.id];
 }
@@ -81,13 +110,15 @@ Server.prototype.getStatus = function (jobid,client) {
     else {
         status.known = 0;
     }
-    client.write({kind:'response',type:packet.types['STATUS_RES'],args:status});
+    client.sendStatus(status);
 }
 Server.prototype.submitJob = function (client,func,options,body) {
+    // We might have to attach to an existing job, with uniqueids
     var job = new Job(client,func,options,body);
     job.jobid = ++ this.jobMaxId;
     this.jobs[job.jobid] = job;
-    client.write({kind:'response',type:packet.types['JOB_CREATED'],args:{job: job.jobid}});
+    client.addJob(job);
+    client.sendJobCreated(job.jobid);
     var self = this;
     process.nextTick(function() { self.wakeWorkers() });
 }
@@ -107,13 +138,13 @@ Server.prototype.wakeWorkers = function () {
         }
     }
     for (var clientid in clients) {
-        this.clients[clientid].write({kind:'response',type:packet.types['NOOP']});
+        this.clients[clientid].sendNoop();
     }
 }
 Server.prototype.grabJob = function (client,unique) {
     for (var jobid in this.jobs) {
         var job = this.jobs[jobid];
-        if (!client.workers[job.function]) continue;
+        if (!this.workersCount[job.function]) continue;
         if (job.worker) continue;
         job.worker = client;
         if (unique) {
@@ -152,7 +183,7 @@ Server.prototype.workException = function (client,jobid,body) {
     }
     delete this.jobs[jobid];
 }
-Server.prototype.workStatus = function (client,jobid,complete,total) {
+Server.prototype.updateStatus = function (client,jobid,complete,total) {
     var job = this.jobs[jobid];
     job.complete = complete;
     job.total = total;
@@ -180,6 +211,7 @@ var ServerConnection = function (server,options) {
     this.jobs = {};
     this.status = 'active';
 
+    // Requests that are handled per connection
     var self = this;
     this.packets.on('OPTION_REQ', function (data) {
         if (self.features[data.args.option] != null) {
@@ -198,30 +230,23 @@ var ServerConnection = function (server,options) {
     });
 
     this.packets.on('CAN_DO', function (data) {
-        var options  = self.workers[data.args.function] = {timeout:0};
-        self.server.addWorker(data.args.function,self,options);
+        self.emit('add-worker',data.args.function,self,{timeout:0});
     });
 
     this.packets.on('CAN_DO_TIMEOUT', function (data) {
-        var options  = self.workers[data.args.function] = {timeout:data.args.timeout};
-        self.server.addWorker(data.args.function,self,options);
+        self.emit('add-worker',data.args.function,self,{timeout:data.args.timeout});
     });
 
     this.packets.on('CANT_DO', function (data) {
-        self.server.removeWorker(data.args.function,self);
+        self.emit('remove-worker',data.args.function,self);
     });
 
-    var reset_abilities = function () {
-        for (var func in self.workers) {
-            self.server.removeWorker(func,self);
-        }
-        self.workers = {};
-    };
-    this.packets.on('RESET_ABILITIES', reset_abilities);
+    this.packets.on('RESET_ABILITIES', function () {
+        self.emit('remove-all-workers', self);
+    });
+
     this.connection.on('end', function() {
-        reset_abilities();
-        // TODO: Abort jobs
-        self.server.recordDisconnect(self);
+        self.emit('disconnect',self);
     });
 
     this.packets.on('PRE_SLEEP', function (data) {
@@ -242,6 +267,14 @@ var ServerConnection = function (server,options) {
         self.server.submitJob(self,data.args.function, {uniqueid: data.args.uniqueid,priority:-1}, data.body);
     });
     // SUBMIT_JOB_BG, SUBMIT_JOB_HIGH_BG, SUBMIT_JOB_LOW_BG
+    /*
+    this.packets.on('SUBMIT_JOB_BG', function (data) {
+    });
+    this.packets.on('SUBMIT_JOB_HIGH_BG', function (data) {
+    });
+    this.packets.on('SUBMIT_JOB_LOW_BG', function (data) {
+    });
+    */
     this.packets.on('GET_STATUS', function (data) {
         self.server.getStatus(data.args.job,client);
     });
@@ -276,6 +309,22 @@ var ServerConnection = function (server,options) {
 }
 util.inherits( ServerConnection, AbraxasSocket );
 
+ServerConnection.prototype.addWorker = function (func) {
+    this.workers[func] = true;
+}
+
+ServerConnection.prototype.removeWorker = function (func) {
+    delete this.workers[func];
+}
+
+ServerConnection.prototype.addJob = function (job) {
+    this.jobs[job.id] = job;
+}
+
+ServerConnection.prototype.removeJob = function (job) {
+    delete this.jobs[job.id];
+}
+
 ServerConnection.prototype.write = function (packet) {
     if (this.socket) {
         this.socket.write(packet);
@@ -283,4 +332,25 @@ ServerConnection.prototype.write = function (packet) {
     else {
         console.error("Disconnected, couldn't write packet");
     }
+}
+
+ServerConnection.prototype.sendNoSuchWorker = function (func) {
+    this.write({
+        kind: 'response',
+        type: packet.types['ERROR'],
+        args: { errorcode: 'NOSUCHWORKER' },
+        body: 'Could not remove worker '+func+', none registered'
+    });
+}
+
+ServerConnection.prototype.sendStatus = function (status) {
+    this.write({kind:'response',type:packet.types['STATUS_RES'],args:status});
+}
+
+ServerConnection.prototype.sendJobCreated = function (jobid) {
+    this.write({kind:'response',type:packet.types['JOB_CREATED'],args:{job: jobid}});
+}
+
+ServerConnection.prototype.sendNoop = function () {
+    this.write({kind:'response',type:packet.types['NOOP']});
 }

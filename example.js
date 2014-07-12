@@ -14,6 +14,7 @@ client.registerWorker("toUpper", function(task) {
     client.submitJob('toUpper', {encoding: 'utf8',uniqueid:'test'+v}, 'test string '+v,function(err,result) {
         if (err) { throw err }
         console.log(new Date(),"Upper:", result);
+        if (v==5) client.forgetAllWorkers();
     });
 
 });

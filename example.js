@@ -11,7 +11,7 @@ client.registerWorker("toUpper", function(task) {
 
 [1,2,3,4,5].forEach(function(v) {
 
-    client.submitJob('toUpper', {encoding: 'utf8'}, 'test string '+v,function(err,result) {
+    client.submitJob('toUpper', {encoding: 'utf8',uniqueid:'test'+v}, 'test string '+v,function(err,result) {
         if (err) { throw err }
         console.log(new Date(),"Upper:", result);
     });

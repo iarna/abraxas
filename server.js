@@ -17,10 +17,10 @@ var Server = module.exports = function (options) {
     this.options = options;
     this.socket = options.socket;
     this.clients = {};
-    this.clients.length = 0;
+    this.clientMaxId = 0;
     this.workers = {};
     this.jobs = {};
-    this.jobs.length = 0;
+    this.jobMaxId = 0;
     var self = this;
     this.socket.on('error', function(msg) { self.emit('error', msg) });
     this.socket.on('connection',function(socket) { self.acceptConnection(socket) });
@@ -46,7 +46,7 @@ Server.listen = function (options, callback) {
 }
 
 Server.prototype.acceptConnection = function (socket) {
-    var id = ++ this.clients.length;
+    var id = ++ this.clientMaxId;
     var options = {};
     extend( options, this.options );
     options.socket = socket;
@@ -85,7 +85,7 @@ Server.prototype.getStatus = function (jobid,client) {
 }
 Server.prototype.submitJob = function (client,func,options,body) {
     var job = new Job(client,func,options,body);
-    job.jobid = ++ this.jobs.length;
+    job.jobid = ++ this.jobMaxId;
     this.jobs[job.jobid] = job;
     client.write({kind:'response',type:packet.types['JOB_CREATED'],args:{job: job.jobid}});
     var self = this;
@@ -94,7 +94,6 @@ Server.prototype.submitJob = function (client,func,options,body) {
 Server.prototype.wakeWorkers = function () {
     var todo = {};
     for (var jobid in this.jobs) {
-        if (jobid == 'length') continue;
         var job = this.jobs[jobid];
         if (job.worker) continue;
         todo[job.function] ++;
@@ -113,7 +112,6 @@ Server.prototype.wakeWorkers = function () {
 }
 Server.prototype.grabJob = function (client,unique) {
     for (var jobid in this.jobs) {
-        if (jobid == 'length') continue;
         var job = this.jobs[jobid];
         if (!client.workers[job.function]) continue;
         if (job.worker) continue;

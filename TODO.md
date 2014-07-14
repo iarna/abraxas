@@ -3,18 +3,22 @@ Server
 The server implementation is very much just a proof of concept, it's
 missing many important things:
 
-* Spooling jobs to disk as they come in, rather then memory (replace bufr).
-* Job persistence for background jobs.
+* Uniqueids actually don't behave the same as C++ gearman-- this
+  should only happen if enabled via an OPTION_REQ. Alternative
+  is basically the same but without any buffering.
+* Spooling jobs to disk as they come in, rather then memory (replace bufr)
+  and StreamReplay's buffer array. This should be plugable, with
+  at least memory and disk backends.
 * Job priority levels.
 * Job queueing is currently FIFO, but kind of only by accident.
 * Job queueing currently involves scanning the entire list of jobs. This is
   obviously non-optimal from a scaling point of view.
+* Verify that foreground jobs whose workers die FAIL rather then retry.
 * Admin commmands!
-* A nice happy refactor now that something's there.
-* Worker failures need retries.
-* Client failures need to actually abort the job.
-* Worker failure retries should do the exponential backoff dance, rather then just
-  dequeueing. (Dequeueing when you've promised to run something is BAD.)
+* Background jobs!
+  * Job persistence for background jobs.
+  * Worker failure retries should do the exponential backoff dance, rather then just
+    dequeueing. (Dequeueing when you've promised to run something is BAD.)
 
 General
 

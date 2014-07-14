@@ -33,7 +33,7 @@ util.inherits( AbraxasClient, AbraxasSocket );
 
 extend( AbraxasClient.prototype, require('./echo') );
 extend( AbraxasClient.prototype, require('./admin') );
-extend( AbraxasClient.prototype, require('./jobs') );
+extend( AbraxasClient.prototype, require('./client-jobs') );
 extend( AbraxasClient.prototype, require('./worker').Worker );
 
 AbraxasClient.connect = function(options,callback) {

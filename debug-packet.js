@@ -17,6 +17,8 @@ var debugPacket = module.exports = function (data) {
             out.bodyTruncated = true;
         }
     }
-    out.type = out.type.name;
+    if (out.type) {
+        out.type = out.type.name;
+    }
     return JSON.stringify(out);
 }

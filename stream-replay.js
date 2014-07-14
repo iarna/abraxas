@@ -14,6 +14,7 @@ var StreamReplay = module.exports = function (options) {
     this.id = ++id;
     var self = this;
     this.on('finish',function(){
+        self.emit('end');
         self.finished = true;
         self._flushChildren();
     });
@@ -40,7 +41,7 @@ StreamReplay.prototype._flushChildren = function (child) {
 }
 StreamReplay.prototype._sendBufferToChild = function (child) {
     if (child.bufferLoc >= this._buffer.length) {
-        if (this.finished) {
+        if (this.finished && child.options.end) {
             child.dest.end();
         }
         return child.flushing = false;
@@ -53,14 +54,24 @@ StreamReplay.prototype._sendBufferToChild = function (child) {
 }
 
 var childId = 0;
-StreamReplay.prototype.pipe = function (pipeto) {
-    var child = {id:++childId, bufferLoc: 0, dest: pipeto};
+StreamReplay.prototype.pipe = function (pipeto,options) {
+    if (!options) options = {};
+    if (options.end == null) options.end = true;
+    var child = {id:++childId, bufferLoc: 0, dest: pipeto, options: options};
     this._children.push(child);
     this._flushChildren();
     return pipeto;
 }
 
 StreamReplay.prototype.unpipe = function (pipeto) {
+    if (pipeto == null) {
+        this._children.forEach(function(child) {
+            if (!child.drain) return;
+            child.removeListener('drain',child.drain);
+        });
+        this._children = [];
+        return;
+    }
     var child = this._children.filter(function(pc){ return pc.dest === pipeto });
     this._children = this._children.filter(function(pc){ return pc !== child });
     if (child.drain) {

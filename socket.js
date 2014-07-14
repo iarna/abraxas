@@ -28,6 +28,9 @@ var AbraxasSocket = module.exports = function (options) {
 
     this.connection = options.socket;
 
+    this.connection.setNoDelay(true);
+    this.connection.setKeepAlive(true);
+
     this.refCount = 0;
     this.connection.unref();
 

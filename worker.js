@@ -143,7 +143,7 @@ Worker.dispatchWorker = function (job) {
         self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
     });
 
-    task.outbound.on('error', function (msg) {
+    var sendException = function (msg) {
         if (self.exceptions) {
             self.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:msg});
         }
@@ -152,7 +152,9 @@ Worker.dispatchWorker = function (job) {
             self.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:jobid}});
         }
         self.endWork(jobid);
-    });
+    }
+
+    task.outbound.on('error', sendException);
 
     task.outbound.on('end', function () {
         if (self.socket) {
@@ -167,9 +169,13 @@ Worker.dispatchWorker = function (job) {
         var handleReturnValue = function (value) {
             if (value && value.pipe) {
                 value.pipe(task);
+                value.on('error', sendException);
             }
             else if (value && value.then) {
-                value.then(function(data) { handleReturnValue(data) }, function (error) { task.outbound.emit(error) });
+                value.then(handleReturnValue, sendException);
+            }
+            else if (value instanceof Error) {
+                sendException(value);
             }
             else if (value != null) {
                 task.end(value);
@@ -179,6 +185,6 @@ Worker.dispatchWorker = function (job) {
         handleReturnValue(worker.handler(task));
     }
     catch (error) {
-        task.outbound.emit('error', error);
+        sendException(error);
     }
 }

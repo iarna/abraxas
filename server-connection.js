@@ -281,6 +281,15 @@ ServerConnection.prototype.sendWorkWarning = function (jobid,body,callback) {
     }, callback);
 }
 
+ServerConnection.prototype.sendWorkException = function (jobid,body,callback) {
+    var flushed = this.write({
+        kind: 'response',
+        type: packet.types['WORK_EXCEPTION'],
+        args: { job: jobid },
+        body: body
+    }, callback);
+}
+
 ServerConnection.prototype.sendWorkStatus = function (jobid,complete,total,callback) {
     var flushed = this.write({
         kind: 'response',

@@ -5,12 +5,15 @@ What follows are the semantics of how the C++ gearmand server handles
 various edge cases.  These have all been verified experimentally, as there
 is no extant documentation.
 
+
 Disconnecting Workers
 ---------------------
 
 If a worker disconnects prior to sending a WORK_COMPLETE, WORK_FAIL or
 WORK_EXCEPTION packet, the server will act as if it never gave that job to
-the worker, requeue it and give it to the next available worker.
+the worker, requeue it and give it to the next available worker.  Clients
+have no mechanism to be aware of this, as such, they may receive duplicate
+data in the form of WORK_DATA packets.
 
 Unique IDs
 ----------

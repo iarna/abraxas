@@ -95,17 +95,20 @@ Server.prototype.removeAllWorkers = function (client) {
 
 Server.prototype.recordDisconnect = function (client) {
     var self = this;
-    Object.keys(this.jobs).forEach(function(jobid) {
-        var job = self.jobs[jobid];
-        if (job.worker !== client) return;
-        if (! job.background && client.feature.streaming) {
-            job.sendWorkFail();
-        }
-        else {
-            job.worker = null;
-            self.wakeWorkers();
-        }
-    });
+    var wakeJobs = 0;
+    Object.keys(this.jobs)
+          .map( function(jobid)  { return self.jobs[jobid] })
+          .filter( function(job) { return job.worker === client })
+          .forEach( function(job) {
+              if (! job.background && client.feature.streaming) {
+                  job.sendWorkFail();
+              }
+              else {
+                  job.worker = null;
+                  ++ wakeJobs;
+              }
+          });
+    if (wakeJobs) this.wakeWorkers();
     this.removeAllWorkers(client);
     client.getJobs().forEach(function(job) {
         job.removeClient(client);

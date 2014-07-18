@@ -11,6 +11,11 @@ var AbraxasSocket = require('./socket');
 var AbraxasClient = module.exports = function (options) {
     AbraxasSocket.call(this,options);
 
+    this.feature = {
+        exceptions: false,
+        streaming: false
+    };
+
     this.packets.acceptDefault('ERROR', function (data) {
         streamToBuffer(data.body,function(err, body) {
             var error = new Error(err ? err : body.toString());
@@ -21,11 +26,33 @@ var AbraxasClient = module.exports = function (options) {
 
     this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
     var self = this;
-    this.packets.acceptSerial('OPTION_RES', function (data) {
+    this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
+        if (err) return;
         if (data.args.option == 'exceptions') {
-            self.exceptions = true;
+            self.feature.exceptions = true;
         }
     });
+
+    if (options.streaming) {
+        this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
+        var trace = new Error();
+        this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
+            if (err) {
+                if (err.name == 'UNKNOWN_OPTION') {
+                    trace.name = err.name;
+                    trace.message = 'Server does not support option "streaming"';
+                    self.emitError(trace);
+                }
+                else {
+                    self.emitError(err);
+                }
+                return;
+            }
+            if (data.args.option == 'streaming') {
+                self.feature.streaming = true;
+            }
+        });
+    }
 
     require('./worker').construct.call(this);
 }

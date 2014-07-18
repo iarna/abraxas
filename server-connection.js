@@ -8,7 +8,10 @@ var ServerConnection = module.exports = function (server,options) {
 
     this.server = server;
     this.id = options.id;
-    this.features = { exceptions: false };
+    this.feature = {
+        exceptions: false,
+        streaming: false
+    };
     this.workers = {};
     this.jobs = {};
     this.status = 'active';
@@ -16,8 +19,8 @@ var ServerConnection = module.exports = function (server,options) {
     // Requests that are handled per connection
     var self = this;
     this.packets.on('OPTION_REQ', function (data) {
-        if (self.features[data.args.option] != null) {
-            self.features[data.args.option] = true;
+        if (self.feature[data.args.option] != null) {
+            self.feature[data.args.option] = true;
             self.sendOptionResult(data.args.option);
         }
         else {
@@ -173,7 +176,7 @@ ServerConnection.prototype.write = function (packet,callback) {
         if (flushed) { callback() } else { this.socket.once('drain', callback) }
     }
     else {
-        console.error("Disconnected, couldn't write packet");
+        console.error("Disconnected, couldn't write packet", new Error().stack);
         if (callback) callback();
     }
 }

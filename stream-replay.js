@@ -57,7 +57,8 @@ var childId = 0;
 StreamReplay.prototype.pipe = function (pipeto,options) {
     if (!options) options = {};
     if (options.end == null) options.end = true;
-    var child = {id:++childId, bufferLoc: 0, dest: pipeto, options: options};
+    if (options.sendBuffer == null) options.sendBuffer = true;
+    var child = {id:++childId, bufferLoc: options.sendBuffer ? 0: this._buffer.length, dest: pipeto, options: options};
     this._children.push(child);
     this._flushChildren();
     return pipeto;

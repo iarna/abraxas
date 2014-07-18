@@ -90,13 +90,19 @@ Server.prototype.removeAllWorkers = function (client) {
     }
 }
 Server.prototype.recordDisconnect = function (client) {
-    this.removeAllWorkers(client);
     var self = this;
     Object.keys(this.jobs).forEach(function(jobid) {
         var job = self.jobs[jobid];
         if (job.worker !== client) return;
-        job.sendWorkFail();
+        if (client.feature.streaming) {
+            job.sendWorkFail();
+        }
+        else {
+            job.worker = null;
+            self.wakeWorkers();
+        }
     });
+    this.removeAllWorkers(client);
     client.getJobs().forEach(function(job) {
         job.removeClient(client);
     });
@@ -200,7 +206,7 @@ Server.prototype.workWarning = function (client,jobid,body) {
 
 Server.prototype.workException = function (client,jobid,body) {
     this.withJob(client,jobid,function(job) {
-        if (job.client.features.exceptions) {
+        if (job.client.feature.exceptions) {
             job.sendWorkException(body);
         }
         else {

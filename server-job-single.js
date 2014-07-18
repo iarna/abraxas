@@ -12,6 +12,7 @@ var Job = module.exports = function (id, func, priority, body) {
     this.worker = null;
     this.complete = 0;
     this.total = 0;
+    this.queued = new Date();
     events.EventEmitter.call(this);
 }
 util.inherits( Job, events.EventEmitter );

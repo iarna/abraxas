@@ -177,20 +177,28 @@ Server.prototype.wakeWorkers = function () {
 }
 
 Server.prototype.grabJob = function (client,unique) {
-    for (var jobid in this.jobs) {
-        var job = this.jobs[jobid];
-        if (!this.workersCount[job.function]) continue;
-        if (job.worker) continue;
-        job.worker = client;
-        if (unique) {
-            client.sendJobAssignUniq(job);
-        }
-        else {
-            client.sendJobAssign(job);
-        }
-        return;
+    var self = this;
+    var jobs = Object.keys(this.jobs).map(function(jobid){
+        return self.jobs[jobid]
+    }).filter(function(job) {
+        return self.workersCount[job.function] && !job.worker;
+    }).sort(function(A,B) {
+        if (A.priority > B.priority) return -1;
+        if (A.priority < B.priority) return 1;
+        if (A.queued < B.queued) return -1;
+        if (A.queued > B.queued) return 1;
+        return 0;
+    });
+    if (jobs.length == 0) return client.sendNoJob();
+
+    var job = jobs[0];
+    job.worker = client;
+    if (unique) {
+        client.sendJobAssignUniq(job);
     }
-    client.sendNoJob();
+    else {
+        client.sendJobAssign(job);
+    }
 }
 
 Server.prototype.workComplete = function (client,jobid,body) {

@@ -88,27 +88,30 @@ var ServerConnection = module.exports = function (server,options) {
        });
     });
     this.packets.on('SUBMIT_JOB_BG', function (data) {
-        self.emit('submit-job-bg', {
+        self.emit('submit-job', {
             client: self,
             function: data.args.function,
+            background: true,
             uniqueid: data.args.uniqueid,
             priority: 0,
             body: data.body
         });
     });
     this.packets.on('SUBMIT_JOB_HIGH_BG', function (data) {
-        self.emit('submit-job-bg', {
+        self.emit('submit-job', {
             client: self,
             function: data.args.function,
+            background: true,
             uniqueid: data.args.uniqueid,
             priority: 1,
             body: data.body
         });
     });
     this.packets.on('SUBMIT_JOB_LOW_BG', function (data) {
-        self.emit('submit-job-bg', {
+        self.emit('submit-job', {
             client: self,
             function: data.args.function,
+            background: true,
             uniqueid: data.args.uniqueid,
             priority: -1,
             body: data.body

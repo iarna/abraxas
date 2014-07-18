@@ -94,7 +94,7 @@ Server.prototype.recordDisconnect = function (client) {
     Object.keys(this.jobs).forEach(function(jobid) {
         var job = self.jobs[jobid];
         if (job.worker !== client) return;
-        if (client.feature.streaming) {
+        if (! job.background && client.feature.streaming) {
             job.sendWorkFail();
         }
         else {
@@ -126,7 +126,7 @@ Server.prototype.submitJob = function (args) {
         job = this.jobs['unique:'+args.uniqueid];
     }
     else {
-        job = createJob(args.function, args.uniqueid, args.priority, args.body);
+        job = createJob(args.function, args.background, args.uniqueid, args.priority, args.body);
         this.jobs[job.id] = job;
         job.on('no-clients',function() {
             delete self.jobs[job.id];

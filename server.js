@@ -64,6 +64,7 @@ Server.prototype.acceptConnection = function (socket) {
     client.on('disconnect', function () { self.recordDisconnect(client) });
     client.on('sleeping', function () { process.nextTick(function() { self.wakeWorkers() }) });
 }
+
 Server.prototype.addWorker = function (func, client, options) {
     if (! this.workers[func]) { this.workers[func] = {}; this.workersCount[func] = 0 }
     if (this.workers[func][client.id]) {
@@ -75,6 +76,7 @@ Server.prototype.addWorker = function (func, client, options) {
         this.workersCount[func] ++;
     }
 }
+
 Server.prototype.removeWorker = function (func, client) {
     if (this.workers[func]) {
         delete this.workers[func][client.id];
@@ -84,11 +86,13 @@ Server.prototype.removeWorker = function (func, client) {
     }
     client.sendErrorNoSuchWorker(func);
 }
+
 Server.prototype.removeAllWorkers = function (client) {
     for (var func in client.workers) {
         this.removeWorker(func,client);
     }
 }
+
 Server.prototype.recordDisconnect = function (client) {
     var self = this;
     Object.keys(this.jobs).forEach(function(jobid) {
@@ -108,6 +112,16 @@ Server.prototype.recordDisconnect = function (client) {
     });
     delete this.clients[client.id];
 }
+
+Server.prototype.withJob = function(client,jobid,callback,nojobcallback) {
+    var job = this.jobs[jobid];
+    if (!job) {
+        if (nojobcallback) { return nojobcallback.call(this) }
+        return client.sendErrorNoSuchJob(jobid);
+    }
+    callback.call(this,job);
+}
+
 Server.prototype.getStatus = function (jobid,client) {
     this.withJob(client,jobid,function(job) {
         status = job.getStatus();
@@ -119,6 +133,7 @@ Server.prototype.getStatus = function (jobid,client) {
     status.job = jobid;
     client.sendStatus(status);
 }
+
 Server.prototype.submitJob = function (args) {
     var self = this;
     var job;
@@ -140,6 +155,7 @@ Server.prototype.submitJob = function (args) {
     args.client.addJob(job);
     job.addClient(args.client);
 }
+
 Server.prototype.wakeWorkers = function () {
     var todo = {};
     for (var jobid in this.jobs) {
@@ -159,6 +175,7 @@ Server.prototype.wakeWorkers = function () {
         this.clients[clientid].sendNoop();
     }
 }
+
 Server.prototype.grabJob = function (client,unique) {
     for (var jobid in this.jobs) {
         var job = this.jobs[jobid];
@@ -174,15 +191,6 @@ Server.prototype.grabJob = function (client,unique) {
         return;
     }
     client.sendNoJob();
-}
-
-Server.prototype.withJob = function(client,jobid,callback,nojobcallback) {
-    var job = this.jobs[jobid];
-    if (!job) {
-        if (nojobcallback) { return nojobcallback.call(this) }
-        return client.sendErrorNoSuchJob(jobid);
-    }
-    callback.call(this,job);
 }
 
 Server.prototype.workComplete = function (client,jobid,body) {

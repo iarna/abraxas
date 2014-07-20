@@ -82,9 +82,7 @@ PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
 PacketHandler.prototype.unacceptSerial = function (event, callback) {
     if (!this.eventQueue[event]) return;
     if (!this.eventQueue[event].length) return;
-    var queue = [];
     this.eventQueue[event] = this.eventQueue[event].filter(function(handler) { return callback!==handler });
-    this.eventQueue[event] = queue;
     this.handleEmptyEventQueue(event);
 }
 

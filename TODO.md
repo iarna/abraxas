@@ -3,15 +3,18 @@ Server
 The server implementation is very much just a proof of concept, it's
 missing many important things:
 
-* Disable WORK_DATA packets when not in streaming mode (buffer for
-  WORK_COMPLETE instead).  Add data command to explicitly send WORK_DATA
-  packets even in streaming mode.
 * Spooling jobs to disk as they come in, rather then memory (StreamReplay)
   This should be plugable, with at least memory and disk backends.
 * Job queueing currently involves scanning the entire list of jobs. This is
   likely a scalaing choke point, but load testing is called for first.
 * Admin commmands!
 * Worker failure retries should do the exponential backoff dance, rather then immediately requeueing.
+
+Worker
+
+* Disable WORK_DATA packets when not in streaming mode (buffer for
+  WORK_COMPLETE instead).  Add data command to explicitly send WORK_DATA
+  packets even in streaming mode.
 
 General
 

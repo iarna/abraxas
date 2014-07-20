@@ -1,7 +1,6 @@
 "use strict";
 var packet = require('gearman-packet');
 var stream = require('stream');
-var copy = require('shallow-copy');
 var streamToBuffer = require('./stream-to-buffer');
 
 exports.getStatus = function (jobid,callback) {

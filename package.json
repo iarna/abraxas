@@ -12,7 +12,6 @@
   "dependencies": {
     "gearman-packet": "^0.2.1",
     "through2": "^0.4.1",
-    "shallow-copy": "^0.0.1",
     "util-extend": "^1.0.1",
     "concat-stream": "^1.4.6",
     "bluebird": "^2.1.3",

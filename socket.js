@@ -107,7 +107,7 @@ AbraxasSocket.prototype.disconnect = function () {
 
 AbraxasSocket.prototype.destroy = function () {
     if (this.connection) this.connection.destroy();
-    this.socket = this.connection = null;
+    this.disconnect();
 }
 
 

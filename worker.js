@@ -71,6 +71,7 @@ Worker.unregisterWorker = function (func) {
         this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
         this.unref();
     }
+    if (!this.connected) return;
     this.socket.write({kind:'request',type:packet.types['CANT_DO'],args:{functon: func}});
 }
 
@@ -120,8 +121,9 @@ Worker.forgetAllWorkers = function () {
     this._workers = {};
     this._workersCount = 0;
     this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
-    this.socket.write({kind:'request',type:packet.types['RESET_ABILITIES']});
     this.unref();
+    if (!this.connected) return;
+    this.socket.write({kind:'request',type:packet.types['RESET_ABILITIES']});
 }
 
 Worker.dispatchWorker = function (job) {

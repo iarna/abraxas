@@ -7,6 +7,7 @@ var packet = require('gearman-packet');
 var PacketHandler = require('./packet-handler');
 var debugPacket = require('./debug-packet');
 
+var maxId = 0;
 var AbraxasSocket = module.exports = function (options) {
     if (!options) options = {};
     if (!options.socket) {
@@ -39,12 +40,13 @@ var AbraxasSocket = module.exports = function (options) {
     this.connection.unref();
 
     if (this.connection.remoteAddress) {
-        this.clientid = (net.isIPv4(this.connection.remoteAddress)?this.connection.remoteAddress:'['+this.connection.remoteAddress+']') + ':' + this.connection.remotePort;
+        this.clientid = (++maxId)+'='+(net.isIPv4(this.connection.remoteAddress)?this.connection.remoteAddress:'['+this.connection.remoteAddress+']') + ':' + this.connection.remotePort;
     }
     else {
-        this.clientid = "...connecting...";
+        var id = ++maxId;
+        this.clientid = id+"=...connecting...";
         this.connection.on('connect',function () {
-            self.clientid = (net.isIPv4(self.connection.localAddress)?self.connection.localAddress:'['+self.connection.localAddress+']') + ':' + self.connection.localPort;
+            self.clientid = id+'='+(net.isIPv4(self.connection.localAddress)?self.connection.localAddress:'['+self.connection.localAddress+']') + ':' + self.connection.localPort;
         });
     }
     this.connection.on('error', function(error){ self.emitError(new Error("Socket error: "+error)) });

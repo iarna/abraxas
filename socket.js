@@ -28,6 +28,10 @@ var AbraxasSocket = module.exports = function (options) {
 
     this.connection = options.socket;
 
+    this.connected = false;
+    this.connection.on('connect',function(){ self.connected = true; self.emit('connect',self) });
+    this.connection.on('disconnect',function(){ self.disconnect() });
+
     this.connection.setNoDelay(true);
     this.connection.setKeepAlive(true);
 
@@ -89,9 +93,14 @@ var AbraxasSocket = module.exports = function (options) {
 util.inherits( AbraxasSocket, events.EventEmitter );
 
 AbraxasSocket.prototype.disconnect = function () {
+    if (!this.connected) return;
     if (this.socket) this.socket.end();
     if (this.connection) this.connection.end();
+    this.connected = false;
+    this.refCount = 0;
+    if (this.connection) this.connection.unref()
     this.socket = this.connection = null;
+    this.emit('disconnect',this);
 }
 
 AbraxasSocket.prototype.destroy = function () {

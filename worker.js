@@ -140,10 +140,12 @@ Worker.dispatchWorker = function (job) {
     var task = new WorkerTask(job.body,options);
 
     task.outbound.on('data', function (data) {
+        if (!self.connected) return;
         self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
     });
 
     var sendException = function (msg) {
+        if (!self.connected) return;
         if (self.exceptions) {
             self.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:msg});
         }
@@ -157,7 +159,7 @@ Worker.dispatchWorker = function (job) {
     task.outbound.on('error', sendException);
 
     task.outbound.on('end', function () {
-        if (self.socket) {
+        if (self.connected) {
             var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
             if (task.lastChunk) end.body = task.lastChunk;
             self.socket.write(end, options.encoding);

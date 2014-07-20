@@ -2,13 +2,14 @@
 var util = require('util');
 var events = require('events');
 var buffr = require('buffr');
+var StreamReplay = require('./stream-replay');
 
 var Job = module.exports = function (id, func, priority, body) {
     this.id = id;
     this.function = func;
     this.priority = priority;
-    this.body = body.pipe(buffr());
-    this.body.length = body.length;
+    this.buffer = body.pipe(new StreamReplay());
+    this.bufferSize = body.length;
     this.worker = null;
     this.complete = 0;
     this.total = 0;
@@ -24,6 +25,13 @@ Job.prototype.removeClient = function(client) {
     this.client = null;
     this.emit('no-clients');
 }
+
+Job.prototype.getBody = function () {
+    var body = this.buffer.spawn();
+    body.length = this.bufferSize;
+    return body;
+}
+
 Job.prototype.sendWorkComplete = function(body) {
     this.client.sendWorkComplete(this.id,body);
     this.emit('job-complete');

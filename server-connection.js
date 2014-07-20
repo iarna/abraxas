@@ -240,7 +240,7 @@ ServerConnection.prototype.sendJobAssignUniq = function (job,callback) {
             function: job.function,
             uniqueid: job.uniqueid
         },
-        body: job.body
+        body: job.getBody()
     },callback);
 }
 
@@ -252,7 +252,7 @@ ServerConnection.prototype.sendJobAssign = function (job,callback) {
             job: job.id,
             function: job.function,
         },
-        body: job.body
+        body: job.getBody()
     },callback);
 }
 

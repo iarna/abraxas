@@ -53,6 +53,14 @@ StreamReplay.prototype._sendBufferToChild = function (child) {
         : child.drain = child.dest.once('drain',function() { self._sendBufferToChild(child) });
 }
 
+StreamReplay.prototype.spawn = function () {
+    var out = new stream.PassThrough();
+    this.pipe(out);
+    var self = this;
+    out.on('end',function(){ self.unpipe(out) });
+    return out;
+}
+
 var childId = 0;
 StreamReplay.prototype.pipe = function (pipeto,options) {
     if (!options) options = {};

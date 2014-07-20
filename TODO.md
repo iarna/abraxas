@@ -3,29 +3,22 @@ Server
 The server implementation is very much just a proof of concept, it's
 missing many important things:
 
-* Uniqueids actually don't behave the same as C++ gearman-- this
-  should only happen if enabled via an OPTION_REQ. Alternative
-  is basically the same but without any buffering.
-* Spooling jobs to disk as they come in, rather then memory (replace bufr)
-  and StreamReplay's buffer array. This should be plugable, with
-  at least memory and disk backends.
-* Job priority levels.
-* Job queueing is currently FIFO, but kind of only by accident.
+* Disable WORK_DATA packets when not in streaming mode (buffer for
+  WORK_COMPLETE instead).  Add data command to explicitly send WORK_DATA
+  packets even in streaming mode.
+* Spooling jobs to disk as they come in, rather then memory (StreamReplay)
+  This should be plugable, with at least memory and disk backends.
 * Job queueing currently involves scanning the entire list of jobs. This is
-  obviously non-optimal from a scaling point of view.
-* Verify that foreground jobs whose workers die FAIL rather then retry.
+  likely a scalaing choke point, but load testing is called for first.
 * Admin commmands!
-* Background jobs!
-  * Job persistence for background jobs.
-  * Worker failure retries should do the exponential backoff dance, rather then just
-    dequeueing. (Dequeueing when you've promised to run something is BAD.)
+* Worker failure retries should do the exponential backoff dance, rather then immediately requeueing.
 
 General
 
 * Tests for the client/worker API layer. (The protocol layer is already fully tested.)
-* Support for multiple servers with automatic failover and reconnection.
 * Expose timeouts-- on-connect, reply-to-command, complete-job.
   * Some mechanism to hook any kind of network error, the multi-server variation would want this.
+* Support for multiple servers with automatic failover and reconnection.
 * Consider supporting the extensions that the C++ gearmand has added.
 
 Longer term:

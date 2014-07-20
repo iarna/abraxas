@@ -5,6 +5,7 @@ What follows are the semantics of how the C++ gearmand server handles
 various edge cases.  These have all been verified experimentally, as there
 is no extant documentation.
 
+By default the Abraxas server matches these semantics.
 
 Disconnecting Workers
 ---------------------
@@ -15,6 +16,9 @@ the worker, requeue it and give it to the next available worker.  Clients
 have no mechanism to be aware of this, as such, they may receive duplicate
 data in the form of WORK_DATA packets.
 
+In Abraxas streaming mode, a disconnect triggers a WORK_FAIL. Retries have
+to be handled by the client application code.
+
 Unique IDs
 ----------
 
@@ -23,3 +27,6 @@ that same id, you'll be attached to the original job.  You will receive any
 future packets sent to that job, but you will not receive the history up to
 this point.  This means you will not see any WORK_DATA, WORK_STATUS or
 WORK_WARNING packets already sent to the original client. 
+
+In Abraxas streaming mode, a second uniqueid id connection will receive all
+of the previous WORK_DATA, WORK_STATUS or WORK_WARNING messages.

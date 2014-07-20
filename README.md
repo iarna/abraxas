@@ -82,6 +82,9 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
 
   * *host* (default: 127.0.0.1)
   * *port* (default: 4730)
+  * *streaming* (default: false) -- Requests the Abraxas server's streaming
+    mode.  If you request this with the C++ gearmand you'll get a
+    connection error.
   * *defaultEncoding* (default: buffer) -- The stream encoding to use for
     client and worker payloads, unless otherwise specified.
   * *maxJobs* (default: 1) -- The maximum number of jobs to handle at once.
@@ -98,6 +101,45 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   `net.connect`.  There is, however, no requirement that you wait for the
   connection-- any commands issued prior to the connection being established
   will be buffered.
+
+* **Streaming Mode**
+
+  The Abraxas server supports "streaming" mode which modifies the semantics to
+  support streaming clients.  (See the included [SEMANTICS](SEMANTICS.md)
+  document.)
+
+  Specifically, when the worker is in streaming mode:
+  
+  * If it disconnects in the middle of a job, the server will send a
+    WORK_FAIL response instead of requeing the job.
+
+  When the client is in streaming mode:
+
+  * When it submits a uniqueid job and attaches to an already running job,
+    it will receive all of the WORK_DATA/WORK_WARNING/WORK_STATUS that were
+    sent prior to its attaching to the job.  (Without streaming, only *new*
+    packets are sent.)
+
+* **client.connected**
+
+  A property, true when the client is connected.
+
+* **client.on('connect', function(client) { ... })**
+
+  Called after a connection is established
+
+* **client.on('disconnect', function(client) { ... })**
+
+  Called after the connection drops for any reason.
+
+* **client.disconnect()**
+
+  Disconnects the client after flushing the current buffer.
+
+* **client.destroy()**
+
+  Calls the socket's destroy method, disconnecting the client immediately,
+  ignoring the buffer.
 
 * **var task = client.echo([options][,data][,callback])**
 

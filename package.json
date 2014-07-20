@@ -15,9 +15,7 @@
     "util-extend": "^1.0.1",
     "concat-stream": "^1.4.6",
     "bluebird": "^2.1.3",
-    "duplex-combination": "^1.0.1",
-    "stream-array": "^0.1.3",
-    "buffr": "^0.1.0"
+    "duplex-combination": "^1.0.1"
   },
   "main": "index.js",
   "license": "BSD",

@@ -1,7 +1,6 @@
 "use strict";
 var util = require('util');
 var events = require('events');
-var buffr = require('buffr');
 var StreamReplay = require('./stream-replay');
 
 var Job = module.exports = function (id, func, priority, body) {

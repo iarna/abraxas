@@ -22,9 +22,6 @@ var StreamReplay = module.exports = function (options) {
 util.inherits(StreamReplay,stream.Writable);
 
 StreamReplay.prototype._write = function (data, enc, cb) {
-    var out = require('shallow-copy')(data);
-    if (out.body && out.body.pipe) { out.body = 'PIPE' }
-    if (Buffer.isBuffer(data)) { out = data}
     this._buffer.push([data,enc]);
     var self = this;
     this._flushChildren();

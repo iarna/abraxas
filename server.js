@@ -36,6 +36,7 @@ Server.listen = function (options, callback) {
     }
     else {
         if (!options.port) options.port = 4730;
+        if (!options.host) options.host = 'localhost';
         server.listen(options.port, options.host, options.backlog, callback);
     }
     options.socket = server;

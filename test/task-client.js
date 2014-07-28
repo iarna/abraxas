@@ -64,9 +64,9 @@ var testPrepareBody = function (options,body,assertions) {
         t.plan(assertions.length);
         var task = new ClientTask(null, options);
         var did = {};
-        task._writer = {pipe: function () { did.pipe = true }}
+        task.writer = {pipe: function () { did.pipe = true }}
         task.prepareBody(body,function (value) {
-            if (value === task._writer) {
+            if (value === task.writer) {
                 did.cbWithWriter = true;
             }
             else if (value instanceof stream.Readable) {

@@ -36,27 +36,27 @@ ClientTask.prototype.acceptError = function (error) {
 
 ClientTask.prototype.acceptResult = function (result) {
     if (result == null) {
-        this._reader.end();
+        this.reader.end();
     }
     else if (result.pipe) {
-        result.pipe(this._reader);
+        result.pipe(this.reader);
     }
     else {
-        this._reader._writableState.objectMode = true;
-        this._reader._readableState.objectMode = true;
-        this._reader.write(result, this.options.accept && this.options.accept.encoding ? this.options.accept.encoding : this.options.encoding );
-        this._reader.end();
+        this.reader._writableState.objectMode = true;
+        this.reader._readableState.objectMode = true;
+        this.reader.write(result, this.options.accept && this.options.accept.encoding ? this.options.accept.encoding : this.options.encoding );
+        this.reader.end();
     }
 }
 
 ClientTask.prototype.prepareBody = function (body, callback) {
     if (body==null) {
         if (this.options.bodySize) {
-            this._writer.length = this.options.bodySize;
-            callback(this._writer);
+            this.writer.length = this.options.bodySize;
+            callback(this.writer);
         }
         else {
-            this._writer.pipe(concat(function(body) { callback(body) }));
+            this.writer.pipe(concat(function(body) { callback(body) }));
         }
     }
     else if (!body.pipe && body.then) {

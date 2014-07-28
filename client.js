@@ -83,6 +83,6 @@ AbraxasClient.prototype.newTask = function (callback,options) {
     var task = new ClientTask(callback,options);
     this.ref();
     var self = this;
-    task.on('end',function(){ self.unref() });
+    task.once('close',function(){ self.unref() });
     return task;
 }

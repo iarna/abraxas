@@ -215,6 +215,7 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
     });
     packets.acceptByJob('WORK_COMPLETE', jobid, function (data) {
         cancel();
+        data.body.on('error',function (err) { task.emit('error',error); task.end(); });
         data.body.pipe(out);
     });
 }

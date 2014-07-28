@@ -44,9 +44,11 @@ WorkerTask.prototype.end = function (data) {
     Task.prototype.end.call(this);
 }
 WorkerTask.prototype.warn = function (msg) {
+    if (!this.client.connected) return;
     this.client.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:this.jobid}, body:msg});
 }
 WorkerTask.prototype.status = function (percent) {
+    if (!this.client.connected) return;
     this.client.socket.write({kind:'request',type:packet.types['WORK_STATUS'], args:{job:this.jobid, complete:percent*100, total: 100}});
 }
 WorkerTask.prototype.error = function (err) {

@@ -141,7 +141,7 @@ Worker.dispatchWorker = function (job) {
     if (options.encoding) job.body.setEncoding(options.encoding);
     var task = new WorkerTask(job.body,options);
 
-    task.outbound.on('data', function (data) {
+    task.writer.on('data', function (data) {
         if (!self.connected) return;
         self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
     });
@@ -158,9 +158,9 @@ Worker.dispatchWorker = function (job) {
         self.endWork(jobid);
     }
 
-    task.outbound.on('error', sendException);
+    task.writer.on('error', sendException);
 
-    task.outbound.on('end', function () {
+    task.writer.on('end', function () {
         if (self.connected) {
             var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
             if (task.lastChunk) end.body = task.lastChunk;

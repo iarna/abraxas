@@ -19,11 +19,11 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     if (options.encoding) {
         payload.setEncoding(options.encoding);
     }
-    this.outbound  = new stream.PassThrough(options.response);
+    var outbound = new stream.PassThrough(options.response);
     if (options.encoding && (!options.response || !options.response.encoding)) {
-        this.outbound.setEncoding(options.encoding);
+        outbound.setEncoding(options.encoding);
     }
-    Task.call(this,payload,this.outbound,options);
+    Task.call(this,payload,outbound,options);
 }
 util.inherits(WorkerTask, Task);
 

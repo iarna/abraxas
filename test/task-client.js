@@ -14,7 +14,7 @@ var testAcceptResultCallback = function (data,useStream) {
         var task = new ClientTask( function(err,value) {
             resultError = err;
             resultValue = value;
-        });
+        }, {encoding: 'utf8'});
         task.acceptResult(useStream ? streamify([data]) : data);
         setImmediate(function() {
             t.is(resultError, null, 'No error');
@@ -27,12 +27,12 @@ var testAcceptResultPromise = function (data,useStream) {
         t.plan(2);
         var resultError;
         var resultValue;
-        var task = new ClientTask();
+        var task = new ClientTask(null,{encoding: 'utf8'});
         task.acceptResult(useStream ? streamify([data]) : data);
         task.then(function (value) { resultValue = value }, function (error) { resultError = error });
         setImmediate(function() {
             t.is(resultError, void 0, 'No error');
-            t.is(resultValue.toString(), data, 'Passed through data');
+            t.is(resultValue, data, 'Passed through data');
         });
     }
 }
@@ -41,13 +41,13 @@ var testAcceptResultStream = function (data,useStream) {
         t.plan(2);
         var resultError;
         var resultValue;
-        var task = new ClientTask();
+        var task = new ClientTask(null,{encoding: 'utf8'});
         task.acceptResult(useStream ? streamify([data]) : data);
         task.pipe(concat(function(value) { resultValue = value }));
         task.on('error', function (err) { resultError = error });
         setImmediate(function() {
             t.is(resultError, void 0, 'No error');
-            t.is(resultValue.toString(), data, 'Passed through data');
+            t.is(resultValue, data, 'Passed through data');
         });
     }
 }

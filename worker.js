@@ -146,20 +146,6 @@ Worker.dispatchWorker = function (job) {
         self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
     });
 
-    var sendException = function (msg) {
-        if (!self.connected) return;
-        if (self.exceptions) {
-            self.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:msg});
-        }
-        else {
-            self.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:jobid}, body:msg});
-            self.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:jobid}});
-        }
-        self.endWork(jobid);
-    }
-
-    task.writer.on('error', sendException);
-
     task.writer.on('end', function () {
         if (self.connected) {
             var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
@@ -173,13 +159,13 @@ Worker.dispatchWorker = function (job) {
         var handleReturnValue = function (value) {
             if (value && value.pipe) {
                 value.pipe(task);
-                value.on('error', sendException);
+                value.on('error', function (err) { task.error(err) });
             }
             else if (value && value.then) {
-                value.then(handleReturnValue, sendException);
+                value.then(handleReturnValue, function (err) { task.error(err) });
             }
             else if (value instanceof Error) {
-                sendException(value);
+                task.error(value);
             }
             else if (value != null) {
                 task.end(value);
@@ -189,6 +175,6 @@ Worker.dispatchWorker = function (job) {
         handleReturnValue(worker.handler(task));
     }
     catch (error) {
-        sendException(error);
+        task.error(error);
     }
 }

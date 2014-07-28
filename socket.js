@@ -110,10 +110,8 @@ AbraxasSocket.prototype.destroy = function () {
     this.disconnect();
 }
 
-
 AbraxasSocket.prototype.emitError = function (error) {
-    if (events.EventEmitter.listenerCount(this,'error')) return this.emit('error',error);
-    throw error;
+    this.emit('error',error);
 }
 
 AbraxasSocket.prototype.emitUnknownPacket = function (packet) {

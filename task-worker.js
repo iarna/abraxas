@@ -1,4 +1,6 @@
 "use strict";
+var Promise = require('bluebird');
+var concat = require('concat-stream');
 var stream = require('stream');
 var util = require('util');
 var packet = require('gearman-packet');
@@ -24,6 +26,17 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     Task.call(this,payload,this.outbound,options);
 }
 util.inherits(WorkerTask, Task);
+
+WorkerTask.prototype._makePromise = function () {
+    var self = this;
+    this.promise = new Promise(function(resolve,reject) {
+        if (self.listeners('error')==0) {
+            self.reader.removeAllListeners('error');
+        }
+        self.pipe(concat(function(body) { resolve(body) }));
+        self.reader.once('error', function (err) { reject(err) });
+    });
+}
 
 WorkerTask.prototype.end = function (data) {
     if (this.lastChunk != null) return;

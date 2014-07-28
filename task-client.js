@@ -25,10 +25,16 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
         this.on('error', callback);
     }
     if (options.nobody) transmit.end();
+
+    var self = this;
+    this.on('end', function () { self.emit('close') });
 }
 util.inherits(ClientTask, Task);
 
-// Emits error, warn and status events
+ClientTask.prototype.end = function () {
+    Task.prototype.end.call(this);
+    this.emit('close');
+}
 
 ClientTask.prototype.acceptError = function (error) {
     this.emit('error', error);

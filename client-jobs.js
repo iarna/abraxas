@@ -197,11 +197,11 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
         cancel();
         if (lastWarning == null) {
             task.emit('error', new Error('Job '+jobid+' failed'));
-            task.end();
         }
         else {
             task.emit('error',new Error(lastWarning));
         }
+        task.end();
     });
     packets.acceptByJob('WORK_EXCEPTION', jobid, function (data) {
         cancel();

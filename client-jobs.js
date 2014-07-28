@@ -8,7 +8,8 @@ exports.getStatus = function (jobid,callback) {
 
     var task = this.newTask(callback,{accept: {objectMode: true}, nobody: true});
 
-    self.packets.acceptByJobOnce('STATUS_RES', jobid, function (data) {
+    self.packets.acceptByJobOnce('STATUS_RES', jobid, function (error,data) {
+        if (error) return task.acceptError(error);
         var status = {};
         status.known = Number(data.args.known);
         status.running = Number(data.args.running);

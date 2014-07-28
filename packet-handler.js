@@ -61,6 +61,14 @@ PacketHandler.prototype.acceptSerial = function (event, callback) {
     this.eventQueue[event].push(callback);
 }
 
+PacketHandler.prototype.constructError = function (data,callback) {
+    streamToBuffer(data.body,function(err,body) {
+        var error = new Error(err ? err : body.toString());
+        error.name = data.args['errorcode'];
+        callback(error);
+    });
+}
+
 PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
     var self = this;
     var success = function (data) {
@@ -69,11 +77,7 @@ PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
     }
     var failure = function (data) {
         self.unacceptSerial(event, success);
-        streamToBuffer(data.body,function(err,body) {
-            var error = new Error(err ? err : body.toString());
-            error.name = data.args['errorcode'];
-            callback(error);
-        });
+        self.constructError(data, callback);
     }
     this.acceptSerial(event, success);
     this.acceptSerial('ERROR', failure);
@@ -106,8 +110,15 @@ PacketHandler.prototype.unacceptByJob = function (event, id, callback) {
 
 PacketHandler.prototype.acceptByJobOnce = function (event, id, callback) {
     var self = this;
-    this.acceptByJob( event, id, function(packet) {
+    var success =  function(packet) {
         self.unacceptByJob(event, id);
-        callback(packet);
-    });
+        self.unacceptSerial('ERROR',failure);
+        callback(null,packet);
+    }
+    var failure = function (packet) {
+        self.unacceptByJob(event, id);
+        self.constructError(packet, callback);
+    }
+    this.acceptByJob(event, id, success);
+    this.acceptSerial('ERROR', failure);
 }

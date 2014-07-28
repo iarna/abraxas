@@ -185,7 +185,7 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
     packets.acceptByJob('WORK_WARNING', jobid, function (data) {
         lastWarning = null;
         streamToBuffer(data.body,function(err, body) {
-            var lastWarning = err ? err : body.toString();
+            lastWarning = err ? err : body.toString();
             task.emit('warn',lastWarning);
             return lastWarning;
         });

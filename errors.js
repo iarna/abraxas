@@ -37,6 +37,12 @@ var NoStreaming = AbraxasError.NoStreaming = function () {
 util.inherits(NoStreaming, AbraxasError);
 NoStreaming.prototype.name = 'NoStreaming';
 
+var Connect = AbraxasError.Connect = function (msg) {
+    AbraxasError.call(this,msg);
+}
+util.inherits(Connect, AbraxasError);
+Connect.prototype.name = 'ConnectError';
+
 var Socket = AbraxasError.Socket = function (msg) {
     AbraxasError.call(this,msg);
 }

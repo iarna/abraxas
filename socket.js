@@ -50,7 +50,12 @@ var AbraxasSocket = module.exports = function (options) {
             self.clientid = id+'='+(net.isIPv4(self.connection.localAddress)?self.connection.localAddress:'['+self.connection.localAddress+']') + ':' + self.connection.localPort;
         });
     }
-    this.connection.on('error', function(error){ self.emitError(new AbraxasError.Socket(error)) });
+    var connectionError = function(error){ self.emitError(new AbraxasError.Connect(error)) }
+    this.connection.once('error', connectionError);
+    this.connection.on('connect', function () {
+        self.connection.removeListener('error', connectionError);
+        self.connection.on('error', function (error){ self.emitError(new AbraxasError.Socket(error)) });
+    });
     this.connection.on('end', function(){ self.emit('disconnect') });
 
     var input = this.connection;

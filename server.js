@@ -58,10 +58,10 @@ Server.prototype.acceptConnection = function (socket) {
     client.on('error',function(e) { client.destroy() });
 
     var self = this;
-    ['add-worker', 'remove-worker', 'get-status', 'submit-job', 'grab-job',
+    ['add-worker', 'remove-worker', 'remove-all-workers', 'get-status', 'submit-job', 'grab-job',
      'work-complete', 'work-data', 'work-warning', 'work-exception',
      'update-status'].forEach(function(event) {
-        var methodname = event.replace(/-([a-z])/,function(match,p1){ return p1.toUpperCase() });
+        var methodname = event.replace(/-([a-z])/g,function(match,p1){ return p1.toUpperCase() });
         var method = self[methodname];
         client.on(event, function () { method.apply(self,arguments) });
     });

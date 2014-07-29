@@ -85,6 +85,13 @@ AbraxasClient.prototype.newTask = function (callback,options) {
     var task = new ClientTask(callback,options);
     this.ref();
     var self = this;
-    task.once('close',function(){ self.unref() });
+    var connectionClose = function (had_error){
+        task.acceptError(new AbraxasError.Socket('connection '+(had_error?'error':'closed')));
+    };
+    this.connection.once('close', connectionClose);
+    task.once('close',function(){
+        self.unref();
+        self.connection.removeListener('close', connectionClose);
+    });
     return task;
 }

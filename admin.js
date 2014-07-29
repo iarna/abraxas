@@ -1,5 +1,6 @@
 "use strict";
 var packet = require('gearman-packet');
+var AbraxasError = require('./errors');
 
 var getTableQueue = [];
 var callNextQueued = function() {
@@ -25,9 +26,7 @@ var handleGetTable = function (gearman,callback,linehandler,task) {
     gearman.packets.once('error', errorHandler = function (result) {
         gearman.packets.removeListener('line',lineHandler);
         gearman.packets.removeListener('block-complete',completeHandler);
-        var error = new Error(result.message);
-        error.name = result.code;
-        task.acceptError(error);
+        task.acceptError(new AbraxasError.Server(result.code,result.message));
         callNextQueued();
     });
 }
@@ -67,11 +66,7 @@ var acceptSerialWithError = function (packets, event, callback) {
     }
     var failure = function (data) {
         packets.unacceptSerial(event, success);
-        streamToBuffer(data.body,function(err,body) {
-            var error = new Error(err ? err : body.toString());
-            error.name = data.args['errorcode'];
-            callback(error);
-        });
+        packets.constructError(data, callback);
     }
     packets.acceptSerial(event, success);
     packets.acceptSerial('error', failure);
@@ -80,14 +75,12 @@ var acceptSerialWithError = function (packets, event, callback) {
 
 var taskError = function (task,valuehandler) {
     return function (err,value) {
-       if (err) {
-           var error = new Error(err.message);
-           error.name = err.code;
-           task.acceptError(error);
-       }
-       else {
-           task.acceptResult(valuehandler ? valuehandler(value) : null);
-       }
+        if (err) {
+            task.acceptError(new AbraxasError.Server(err.code,err.message));
+        }
+        else {
+            task.acceptResult(valuehandler ? valuehandler(value) : null);
+        }
     }
 }
 

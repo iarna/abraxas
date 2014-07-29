@@ -2,6 +2,7 @@
 var util = require('util');
 var events = require('events');
 var streamToBuffer = require('./stream-to-buffer');
+var AbraxasError = require('./errors');
 
 var PacketHandler = module.exports = function () {
     events.EventEmitter.call(this);
@@ -63,9 +64,12 @@ PacketHandler.prototype.acceptSerial = function (event, callback) {
 
 PacketHandler.prototype.constructError = function (data,callback) {
     streamToBuffer(data.body,function(err,body) {
-        var error = new Error(err ? err : body.toString());
-        error.name = data.args['errorcode'];
-        callback(error);
+        if (err) {
+            callback(new AbraxasError.Receive(err));
+        }
+        else {
+            callback(new AbraxasError.Server(data.args.errorcode,body));
+        }
     });
 }
 

@@ -2,14 +2,17 @@
 var packet = require('gearman-packet');
 var stream = require('stream');
 var streamToBuffer = require('./stream-to-buffer');
+var AbraxasError = require('./errors');
 
-exports.getStatus = function (jobid,callback) {
+var getStatus = exports.getStatus = function (jobid,callback) {
     var self = this;
 
     var task = this.newTask(callback,{accept: {objectMode: true}, nobody: true});
 
+    var trace = AbraxasError.trace(getStatus);
+
     self.packets.acceptByJobOnce('STATUS_RES', jobid, function (error,data) {
-        if (error) return task.acceptError(error);
+        if (error) return task.acceptError(trace.withError(error));
         var status = {};
         status.known = Number(data.args.known);
         status.running = Number(data.args.running);
@@ -24,7 +27,7 @@ exports.getStatus = function (jobid,callback) {
     return task;
 }
 
-exports.submitJob = function (func,options,data,callback) {
+var submitJob = exports.submitJob = function (func,options,data,callback) {
     if (callback == null && typeof data == 'function') {
         callback = data;
         data = void 0;
@@ -39,7 +42,7 @@ exports.submitJob = function (func,options,data,callback) {
     }
     if (!options) { options = {} }
     var task = this.newTask(callback,options);
-    var trace = new Error();
+    var trace = AbraxasError.trace(submitJob);
     var self = this;
     var packets = this.packets;
     var socket = this.socket;
@@ -49,7 +52,7 @@ exports.submitJob = function (func,options,data,callback) {
         else if (options.priority=='low') type += '_LOW';
 
         packets.acceptSerialWithError('JOB_CREATED', function (error,data) {
-            if (error) return task.acceptError(error);
+            if (error) return task.acceptError(trace.withError(error));
             self.handleJobResult(task,func,trace,packets,data);
         });
 
@@ -59,7 +62,7 @@ exports.submitJob = function (func,options,data,callback) {
     return task;
 }
 
-exports.submitJobBg = function (func,options,data,callback) {
+var submitJobBg = exports.submitJobBg = function (func,options,data,callback) {
     if (callback == null && typeof data == 'function') {
         callback = data;
         data = void 0;
@@ -76,6 +79,7 @@ exports.submitJobBg = function (func,options,data,callback) {
     var packets = this.packets;
     var socket = this.socket;
     options.accept = { encoding: 'utf8' };
+    var trace = AbraxasError.trace(submitJobBg);
     var task = this.newTask(callback, options);
     task.prepareBody(data, function(data) {
         var type = 'SUBMIT_JOB';
@@ -83,7 +87,7 @@ exports.submitJobBg = function (func,options,data,callback) {
         else if (options.priority=='low') type += '_LOW';
         type += '_BG';    
         packets.acceptSerialWithError('JOB_CREATED', function (error,data) {
-            if (error) return task.acceptError(error);
+            if (error) return task.acceptError(trace.withError(error));
             task.acceptResult(data.args['job']);
         });
 
@@ -93,7 +97,7 @@ exports.submitJobBg = function (func,options,data,callback) {
     return task;
 }
 
-exports.submitJobAt = function (func,time,options,data,callback) {
+var submitJobAt = exports.submitJobAt = function (func,time,options,data,callback) {
     if (callback == null && typeof data == 'function') {
         callback = data;
         data = void 0;
@@ -110,13 +114,14 @@ exports.submitJobAt = function (func,time,options,data,callback) {
     var packets = this.packets;
     var socket = this.socket;
     options.accept = { encoding: 'utf8' };
+    var trace = AbraxasError.trace(submitJobAt);
     var task = this.newTask(callback, options);
     task.prepareBody(data, function(data) {
         var args = {function: func, uniqueid:options.uniqueid==null?'':options.uniqueid};
         var type = 'SUBMIT_JOB_EPOCH';
         args.time = Math.round(Number(time instanceof Date ? time.getTime() / 1000 : time));  //
         packets.acceptSerialWithError('JOB_CREATED', function (error,data) {
-            if (error) return task.acceptError(error);
+            if (error) return task.acceptError(trace.withError(error));
             task.acceptResult(data.args['job']);
         });
 
@@ -125,7 +130,7 @@ exports.submitJobAt = function (func,time,options,data,callback) {
     return task;
 }
 
-exports.submitJobSched = function (func,time,options,data,callback) {
+var submitJobSched = exports.submitJobSched = function (func,time,options,data,callback) {
     if (callback == null && typeof data == 'function') {
         callback = data;
         data = void 0;
@@ -142,6 +147,7 @@ exports.submitJobSched = function (func,time,options,data,callback) {
     var packets = this.packets;
     var socket = this.socket;
     options.accept = { encoding: 'utf8' };
+    var trace = AbraxasError.trace(submitJobSched);
     var task = this.newTask(callback, options);
     task.prepareBody(data, function(data) {
         var args = {function: func, uniqueid:options.uniqueid==null?'':options.uniqueid};
@@ -152,7 +158,7 @@ exports.submitJobSched = function (func,time,options,data,callback) {
         args.month = time.month==null?'':time.month;
         args.dow = time.dow==null?'':time.dow;
         packets.acceptSerialWithError('JOB_CREATED', function (error,data) {
-            if (error) return task.acceptError(error);
+            if (error) return task.acceptError(trace.withError(error));
             task.acceptResult(data.args['job']);
         });
 
@@ -185,9 +191,15 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
     packets.acceptByJob('WORK_WARNING', jobid, function (data) {
         lastWarning = null;
         streamToBuffer(data.body,function(err, body) {
-            lastWarning = err ? err : body.toString();
-            task.emit('warn',lastWarning);
-            return lastWarning;
+            if (err) {
+                cancel();
+                task.acceptError(trace.withError(new AbraxasError.Receive(err.message)));
+                task.end();
+            }
+            else {
+                lastWarning = body.toString();
+                task.emit('warn',lastWarning);
+            }
         });
     });
     packets.acceptByJob('WORK_DATA', jobid, function (data) {
@@ -196,26 +208,31 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
     packets.acceptByJob('WORK_FAIL', jobid, function (data) {
         cancel();
         if (lastWarning == null) {
-            task.emit('error', new Error('Job '+jobid+' failed'));
+            task.acceptError(trace.withError(new AbraxasError.JobFail(func,jobid)));
         }
         else {
-            task.emit('error',new Error(lastWarning));
+            task.acceptError(trace.withError(new AbraxasError.JobException(func,jobid,lastWarning)));
         }
         task.end();
     });
     packets.acceptByJob('WORK_EXCEPTION', jobid, function (data) {
         cancel();
         streamToBuffer(data.body,function (err, body) {
-            var error = new Error(err ? err : body.toString());
-            error.name = func;
-            error.jobid = jobid;
-            task.emit('error',error);
+            if (err) {
+                task.acceptError(trace.withError(new AbraxasError.Receive(err.message)));
+            }
+            else {
+                task.acceptError(trace.withError(new AbraxasError.JobException(func,jobid,body.toString())));
+            }
             task.end();
         });
     });
     packets.acceptByJob('WORK_COMPLETE', jobid, function (data) {
         cancel();
-        data.body.on('error',function (err) { task.emit('error',error); task.end(); });
+        data.body.on('error',function (err) {
+            task.acceptError(trace.withError(new AbraxasError.Receive(err)));
+            task.end();
+        });
         data.body.pipe(out);
     });
 }

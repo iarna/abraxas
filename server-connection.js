@@ -173,15 +173,9 @@ ServerConnection.prototype.getJobs = function () {
 }
 
 ServerConnection.prototype.write = function (packet,callback) {
-    if (this.socket) {
-        var flushed = this.socket.write(packet);
-        if (!callback) return;
-        if (flushed) { callback() } else { this.socket.once('drain', callback) }
-    }
-    else {
-        console.error("Disconnected, couldn't write packet", new Error().stack);
-        if (callback) callback();
-    }
+    var flushed = this.socket.write(packet);
+    if (!callback) return;
+    if (flushed) { callback() } else { this.socket.once('drain', callback) }
 }
 
 ServerConnection.prototype.sendErrorNoSuchWorker = function (func,callback) {

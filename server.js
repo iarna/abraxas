@@ -54,10 +54,9 @@ Server.prototype.acceptConnection = function (socket) {
     options.socket = socket;
     options.id     = id;
     var client = this.clients[id] = new ServerConnection(this,options);
-    client.on('error',function(e) {
-        console.error(e);
-        client.destroy();
-    });
+
+    client.on('error',function(e) { client.destroy() });
+
     var self = this;
     ['add-worker', 'remove-worker', 'get-status', 'submit-job', 'grab-job',
      'work-complete', 'work-data', 'work-warning', 'work-exception',

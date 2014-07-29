@@ -5,7 +5,7 @@ var util = require('util');
 var DuplexCombination = require('duplex-combination');
 
 var Task = module.exports = function Task(reader,writer,options) {
-    DuplexCombination.call(this,reader,writer, options);
+    DuplexCombination.call(this,reader,writer,options);
 }
 util.inherits(Task, DuplexCombination);
 
@@ -13,7 +13,7 @@ Task.prototype._makePromise = function () {
     var self = this;
     this.promise = new Promise(function(resolve,reject) {
         self.pipe(concat(function(body) { resolve(body) }));
-        self.on('error', function (err) { reject(err) });
+        self.once('error', function (err) { reject(err) });
     });
 }
 

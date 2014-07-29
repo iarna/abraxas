@@ -7,6 +7,7 @@ var extend = require('util-extend');
 var ClientTask = require('./task-client');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasSocket = require('./socket');
+var AbraxasError  = require('./errors');
 
 var AbraxasClient = module.exports = function (options) {
     AbraxasSocket.call(this,options);
@@ -18,9 +19,12 @@ var AbraxasClient = module.exports = function (options) {
 
     this.packets.acceptDefault('ERROR', function (data) {
         streamToBuffer(data.body,function(err, body) {
-            var error = new Error(err ? err : body.toString());
-            error.name = data.args['errorcode'];
-            self.emitError(error);
+            if (err) {
+                self.emitError(new AbraxasError.Receive());
+            }
+            else {
+                self.emitError(new AbraxasError.Server(data.args.errorcode,body));
+            }
         });
     });
 
@@ -35,16 +39,14 @@ var AbraxasClient = module.exports = function (options) {
 
     if (options.streaming) {
         this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
-        var trace = new Error();
+        var trace = AbraxasError.trace(AbraxasClient);
         this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
             if (err) {
-                if (err.name == 'UNKNOWN_OPTION') {
-                    trace.name = err.name;
-                    trace.message = 'Server does not support option "streaming"';
-                    self.emitError(trace);
+                if (err.code == 'UNKNOWN_OPTION') {
+                    self.emitError(trace.withError(new AbraxasError.NoStreaming));
                 }
                 else {
-                    self.emitError(err);
+                    self.emitError(trace.withError(err));
                 }
                 return;
             }
@@ -83,6 +85,6 @@ AbraxasClient.prototype.newTask = function (callback,options) {
     var task = new ClientTask(callback,options);
     this.ref();
     var self = this;
-    task.on('end',function(){ self.unref() });
+    task.once('close',function(){ self.unref() });
     return task;
 }

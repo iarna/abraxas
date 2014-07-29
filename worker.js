@@ -141,26 +141,12 @@ Worker.dispatchWorker = function (job) {
     if (options.encoding) job.body.setEncoding(options.encoding);
     var task = new WorkerTask(job.body,options);
 
-    task.outbound.on('data', function (data) {
+    task.writer.on('data', function (data) {
         if (!self.connected) return;
         self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
     });
 
-    var sendException = function (msg) {
-        if (!self.connected) return;
-        if (self.exceptions) {
-            self.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:msg});
-        }
-        else {
-            self.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:jobid}, body:msg});
-            self.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:jobid}});
-        }
-        self.endWork(jobid);
-    }
-
-    task.outbound.on('error', sendException);
-
-    task.outbound.on('end', function () {
+    task.writer.on('end', function () {
         if (self.connected) {
             var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
             if (task.lastChunk) end.body = task.lastChunk;
@@ -173,13 +159,13 @@ Worker.dispatchWorker = function (job) {
         var handleReturnValue = function (value) {
             if (value && value.pipe) {
                 value.pipe(task);
-                value.on('error', sendException);
+                value.on('error', function (err) { task.error(err) });
             }
             else if (value && value.then) {
-                value.then(handleReturnValue, sendException);
+                value.then(handleReturnValue, function (err) { task.error(err) });
             }
             else if (value instanceof Error) {
-                sendException(value);
+                task.error(value);
             }
             else if (value != null) {
                 task.end(value);
@@ -189,6 +175,6 @@ Worker.dispatchWorker = function (job) {
         handleReturnValue(worker.handler(task));
     }
     catch (error) {
-        sendException(error);
+        task.error(error);
     }
 }

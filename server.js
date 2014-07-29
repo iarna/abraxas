@@ -43,6 +43,10 @@ Server.listen = function (options, callback) {
     return new Server(options, callback);
 }
 
+Server.prototype.shutdown = function () {
+    this.socket.close();
+}
+
 Server.prototype.acceptConnection = function (socket) {
     var id = ++ this.clientMaxId;
     var options = {};

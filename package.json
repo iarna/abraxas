@@ -17,7 +17,7 @@
     "gearman-packet": "^1.0.0",
     "shallow-copy": "^0.0.1",
     "standard-error": "^1.1.0",
-    "through2": "^0.5.1",
+    "through2": "^1.0.0",
     "util-extend": "^1.0.1"
   },
   "main": "index.js",

@@ -54,3 +54,38 @@ test('error', function (t) {
     })
     
 });
+
+test('work-multiple-serial', function (t) {
+    t.plan(4);
+
+    var gmw = Gearman.Client.connect({packetDump: false});
+    gmw.registerWorker('upper',function (task) {
+        task.then(function(payload) {
+            task.end(payload.toUpperCase());
+        });
+    });
+    var gmc = Gearman.Client.connect({packetDump: false});
+    var message = 'test';
+    gmc.submitJob('upper',message).then(function (result) {
+        t.pass('no errors');
+        t.is(result,message.toUpperCase(),'we got uppercased');
+        gmc.submitJob('upper',message).then(function (result) {
+            t.pass('no errors');
+            t.is(result,message.toUpperCase(),'we got uppercased');
+        })
+        .catch(function (err) {
+            t.fail('no errors');
+            process.stdout.write('# '+err);
+            t.skip();
+        })
+        .finally(function () {
+             gmw.forgetAllWorkers();
+        })
+    })
+    .catch(function (err) {
+        t.fail('no errors');
+        process.stdout.write('# '+err);
+        t.skip();
+    })
+
+});

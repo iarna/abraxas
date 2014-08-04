@@ -95,11 +95,11 @@ PacketHandler.prototype.unacceptSerial = function (event, callback) {
 }
 
 PacketHandler.prototype.acceptByJob = function (event, id, callback) {
-    if (!this.mapped[event]) {
-        this.mapped[event] = {};
+    if (!this.mapped[event]) this.mapped[event] = {};
+    if (!this.mapped[event][id]) {
         this.on(event, this.acceptByJobEventListener);
+        this.mapped[event][id] = [];
     }
-    if (!this.mapped[event][id]) this.mapped[event][id] = [];
     this.mapped[event][id].push(callback);
 }
 

@@ -107,7 +107,6 @@ AbraxasSocket.prototype.disconnect = function () {
     this.connected = false;
     this.refCount = 0;
     if (this.connection) this.connection.unref()
-    this.socket = this.connection = null;
     this.emit('disconnect',this);
 }
 

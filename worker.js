@@ -21,12 +21,12 @@ exports.construct = function () {
     }
 
     var self = this;
-    this.packets.acceptDefault('NO_JOB', function(data) {
+    this.packets.accept('NO_JOB', function(data) {
         if (!self.socket) return;
         self.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
     });
 
-    this.packets.acceptDefault('NOOP', function(data) { self.askForWork() });
+    this.packets.accept('NOOP', function(data) { self.askForWork() });
 }
 var Worker = exports.Worker = {};
 
@@ -68,7 +68,7 @@ Worker.unregisterWorker = function (func) {
     }
     delete this._workers[func];
     if (-- this._workersCount == 0) {
-        this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
+        this.packets.removeHandler('JOB_ASSIGN_UNIQ', this.onJobAssign);
         this.unref();
     }
     if (!this.connected) return;
@@ -84,7 +84,7 @@ Worker.registerWorker = function (func, options, worker) {
         if (this._workersCount++ == 0) {
             var self = this;
             this.ref();
-            this.packets.on('JOB_ASSIGN_UNIQ', this.onJobAssign = function(job) { self.dispatchWorker(job) });
+            this.packets.accept('JOB_ASSIGN_UNIQ', this.onJobAssign = function(job) { self.dispatchWorker(job) });
         }
     }
     if (options.timeout) {
@@ -120,7 +120,7 @@ Worker.forgetAllWorkers = function () {
     if (! this._workersCount) return;
     this._workers = {};
     this._workersCount = 0;
-    this.packets.removeListener('JOB_ASSIGN_UNIQ', this.onJobAssign);
+    this.packets.removeHandler('JOB_ASSIGN_UNIQ', this.onJobAssign);
     this.unref();
     if (!this.connected) return;
     this.socket.write({kind:'request',type:packet.types['RESET_ABILITIES']});

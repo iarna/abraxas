@@ -91,10 +91,8 @@ var AbraxasSocket = module.exports = function (options) {
 
     var self = this;
 
-    input.on('data',function(data){
-        if (events.EventEmitter.listenerCount(self.packets,data.type.name)) return self.packets.emit(data.type.name, data);
-        self.emit('unknown-packet', data.type.name, data);
-    });
+    input.pipe(packets);
+    packets.on('unknown', function (packet) { self.emitUnknownPacket(packet) });
 
     events.EventEmitter.call(this);
 }
@@ -111,7 +109,7 @@ AbraxasSocket.prototype.disconnect = function () {
 }
 
 AbraxasSocket.prototype.destroy = function () {
-    if (this.connection) this.connection.destroy();
+    if (this.connection instanceof net.Socket) this.connection.destroy();
     this.disconnect();
 }
 

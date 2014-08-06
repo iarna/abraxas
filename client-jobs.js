@@ -174,12 +174,12 @@ exports.handleJobResult = function (task,func,trace,packets,data) {
     task.jobid = jobid;
     task.acceptResult(out);
     var cancel = function () {
-        packets.unacceptByJob('WORK_STATUS', jobid);
-        packets.unacceptByJob('WORK_WARNING', jobid);
-        packets.unacceptByJob('WORK_DATA', jobid);
-        packets.unacceptByJob('WORK_FAIL', jobid);
-        packets.unacceptByJob('WORK_EXCEPTION', jobid);
-        packets.unacceptByJob('WORK_COMPLETE', jobid);
+        packets.removeByJob('WORK_STATUS', jobid);
+        packets.removeByJob('WORK_WARNING', jobid);
+        packets.removeByJob('WORK_DATA', jobid);
+        packets.removeByJob('WORK_FAIL', jobid);
+        packets.removeByJob('WORK_EXCEPTION', jobid);
+        packets.removeByJob('WORK_COMPLETE', jobid);
     };
     packets.acceptByJob('WORK_STATUS', jobid, function (data) {
         var complete = Number(data.args.complete);

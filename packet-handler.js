@@ -1,65 +1,99 @@
 "use strict";
 var util = require('util');
-var events = require('events');
+var stream = require('stream');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError = require('./errors');
 
 var PacketHandler = module.exports = function () {
-    events.EventEmitter.call(this);
     this.defaultHandler = {};
-    this.eventQueue = {};
-    this.mapped = {};
-
-    var self = this;
-    this.queueEventListener = function (data) {
-        var event = data.type.name;
-        self.eventQueue[event].shift().apply(null,arguments);
-        self.handleEmptyEventQueue(event);
-    }
-    this.acceptByJobEventListener = function(data) {
-        var event = data.type.name;
-        var id = data.args.job;
-        if (self.mapped[event][id]) {
-            self.mapped[event][id].forEach(function(cb){ cb(data) });
-        }
-        else {
-            self.emit('unknown',data);
-        }
-    }
+    this.serialHandler = {};
+    this.handler = {};
+    this.byJobHandler = {};
+    stream.Writable.call(this,{objectMode: true})
 }
-util.inherits(PacketHandler, events.EventEmitter);
+util.inherits(PacketHandler, stream.Writable);
 
-PacketHandler.prototype.handleEmptyEventQueue = function(event) {
-    if (this.eventQueue[event].length) return;
-    if (this.defaultHandler[event]) {
-        this.removeListener(event, this.queueEventListener);
-        this.on(event, this.defaultHandler[event]);
-    }
-    else {
-        this.removeListener(event, this.queueEventListener);
-    }
+PacketHandler.prototype._write = function (packet, encoding, callback) {
+    callback();
+    var name = packet.type.name;
+    var job = packet.args.job;
+    if (job && this.byJobHandler[job] && this.byJobHandler[job][name]) return this.byJobHandler[job][name](packet);
+    if (this.handler[name]) return this.handler[name](packet);
+    if (this.serialHandler[name] && this.serialHandler[name].length) return this.serialHandler[name].shift()(packet);
+    if (this.defaultHandler[name]) return this.defaultHandler[name](packet);
+    this.emit('unknown', packet);
 }
 
 PacketHandler.prototype.acceptDefault = function (event, callback) {
     if (this.defaultHandler[event]) throw new Error("Tried to register a second default handler for the "+event+" packet");
     this.defaultHandler[event] = callback;
-    if (this.eventQueue[event] && this.eventQueue[event].length) return;
-    this.on(event, this.defaultHandler[event]);
 }
 
 PacketHandler.prototype.removeDefault = function (event) {
-    if (! this.defaultHandler[event]) throw new Error("Tried to remove a default handler for "+event+" but none was set");
-    this.removeListener(event, this.defaultHandler[event]);
+    if (! this.defaultHandler[event]) throw new Error("Tried to remove a default handler for "+event+" packet but none was set");
     delete this.defaultHandler[event];
 }
 
+PacketHandler.prototype.accept = function (event, callback) {
+    if (this.handler[event]) throw new Error("Tried to register a second default handler for the "+event+" packet");
+    this.handler[event] = callback;
+}
+
+PacketHandler.prototype.removeHandler = function (event) {
+    if (! this.handler[event]) throw new Error("Tried to remove a default handler for "+event+" packet but none was set");
+    delete this.handler[event];
+}
+
 PacketHandler.prototype.acceptSerial = function (event, callback) {
-    if (!this.eventQueue[event]) this.eventQueue[event] = [];
-    if (!this.eventQueue[event].length) {
-        this.on(event, this.queueEventListener);
-        if (this.defaultHandler[event]) this.removeListener(event, this.defaultHandler[event]);
+    if (!this.serialHandler[event]) this.serialHandler[event] = [];
+    this.serialHandler[event].push(callback);
+}
+
+PacketHandler.prototype.removeSerial = function (event, callback) {
+    if (!this.serialHandler[event]) return;
+    if (!this.serialHandler[event].length) return;
+    this.serialHandler[event] = this.serialHandler[event].filter(function(handler) { return callback!==handler });
+}
+
+PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
+    var self = this;
+    var success = function (data) {
+        self.removeSerial('ERROR', failure);
+        callback(null, data);
     }
-    this.eventQueue[event].push(callback);
+    var failure = function (data) {
+        self.removeSerial(event, success);
+        self.constructError(data, callback);
+    }
+    this.acceptSerial(event, success);
+    this.acceptSerial('ERROR', failure);
+}
+
+PacketHandler.prototype.acceptByJob = function (event, id, callback) {
+    if (!this.byJobHandler[id]) this.byJobHandler[id] = {};
+    if (this.byJobHandler[id][event]) throw new Error("Tried to register job "+id+" handler for "+event+" packet");
+    this.byJobHandler[id][event] = callback;
+}
+
+PacketHandler.prototype.removeByJob = function (event, id, callback) {
+    if (!this.byJobHandler[id]) throw new Error("Tried to unregister "+event+" handler for job "+id+" but job doesn't exist");
+    delete this.byJobHandler[id][event];
+    if (!Object.keys(this.byJobHandler[id]).length) delete this.byJobHandler[id];
+}
+
+PacketHandler.prototype.acceptByJobOnce = function (event, id, callback) {
+    var self = this;
+    var success =  function(packet) {
+        self.removeByJob(event, id);
+        self.removeSerial('ERROR',failure);
+        callback(null,packet);
+    }
+    var failure = function (packet) {
+        self.removeByJob(event, id);
+        self.constructError(packet, callback);
+    }
+    this.acceptByJob(event, id, success);
+    this.acceptSerial('ERROR', failure);
 }
 
 PacketHandler.prototype.constructError = function (data,callback) {
@@ -71,58 +105,4 @@ PacketHandler.prototype.constructError = function (data,callback) {
             callback(new AbraxasError.Server(data.args.errorcode,body));
         }
     });
-}
-
-PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
-    var self = this;
-    var success = function (data) {
-        self.unacceptSerial('ERROR', failure);
-        callback(null, data);
-    }
-    var failure = function (data) {
-        self.unacceptSerial(event, success);
-        self.constructError(data, callback);
-    }
-    this.acceptSerial(event, success);
-    this.acceptSerial('ERROR', failure);
-}
-
-PacketHandler.prototype.unacceptSerial = function (event, callback) {
-    if (!this.eventQueue[event]) return;
-    if (!this.eventQueue[event].length) return;
-    this.eventQueue[event] = this.eventQueue[event].filter(function(handler) { return callback!==handler });
-    this.handleEmptyEventQueue(event);
-}
-
-PacketHandler.prototype.acceptByJob = function (event, id, callback) {
-    if (!this.mapped[event]) this.mapped[event] = {};
-    if (!this.mapped[event][id]) {
-        this.on(event, this.acceptByJobEventListener);
-        this.mapped[event][id] = [];
-    }
-    this.mapped[event][id].push(callback);
-}
-
-PacketHandler.prototype.unacceptByJob = function (event, id, callback) {
-    if (this.mapped[event]) {
-        delete this.mapped[event][id];
-    }
-    if (Object.keys(this.mapped[event]).length == 0) {
-        this.removeListener(event, this.acceptByJobEventListener);
-    }
-}
-
-PacketHandler.prototype.acceptByJobOnce = function (event, id, callback) {
-    var self = this;
-    var success =  function(packet) {
-        self.unacceptByJob(event, id);
-        self.unacceptSerial('ERROR',failure);
-        callback(null,packet);
-    }
-    var failure = function (packet) {
-        self.unacceptByJob(event, id);
-        self.constructError(packet, callback);
-    }
-    this.acceptByJob(event, id, success);
-    this.acceptSerial('ERROR', failure);
 }

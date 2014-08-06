@@ -18,7 +18,7 @@ var ServerConnection = module.exports = function (server,options) {
 
     // Requests that are handled per connection
     var self = this;
-    this.packets.on('OPTION_REQ', function (data) {
+    this.packets.accept('OPTION_REQ', function (data) {
         if (self.feature[data.args.option] != null) {
             self.feature[data.args.option] = true;
             self.sendOptionResult(data.args.option);
@@ -28,23 +28,23 @@ var ServerConnection = module.exports = function (server,options) {
         }
     });
 
-    this.packets.on('ECHO_REQ', function (data) {
+    this.packets.accept('ECHO_REQ', function (data) {
         self.socket.write({kind:'response',type:packet.types['ECHO_RES'],body:data.body});
     });
 
-    this.packets.on('CAN_DO', function (data) {
+    this.packets.accept('CAN_DO', function (data) {
         self.emit('add-worker',data.args.function,self,{timeout:0});
     });
 
-    this.packets.on('CAN_DO_TIMEOUT', function (data) {
+    this.packets.accept('CAN_DO_TIMEOUT', function (data) {
         self.emit('add-worker',data.args.function,self,{timeout:data.args.timeout});
     });
 
-    this.packets.on('CANT_DO', function (data) {
+    this.packets.accept('CANT_DO', function (data) {
         self.emit('remove-worker',data.args.function,self);
     });
 
-    this.packets.on('RESET_ABILITIES', function () {
+    this.packets.accept('RESET_ABILITIES', function () {
         self.emit('remove-all-workers', self);
     });
 
@@ -52,15 +52,15 @@ var ServerConnection = module.exports = function (server,options) {
         self.emit('disconnect',self);
     });
 
-    this.packets.on('PRE_SLEEP', function (data) {
+    this.packets.accept('PRE_SLEEP', function (data) {
         self.status = 'sleeping';
         self.emit('sleeping');
     });
 
-    this.packets.on('SET_CLIENT_ID', function (data) {
+    this.packets.accept('SET_CLIENT_ID', function (data) {
         self.clientid = data.args.workerid;
     });
-    this.packets.on('SUBMIT_JOB', function (data) {
+    this.packets.accept('SUBMIT_JOB', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -69,7 +69,7 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
         });
     });
-    this.packets.on('SUBMIT_JOB_HIGH', function (data) {
+    this.packets.accept('SUBMIT_JOB_HIGH', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -78,7 +78,7 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
         });
     });
-    this.packets.on('SUBMIT_JOB_LOW', function (data) {
+    this.packets.accept('SUBMIT_JOB_LOW', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -87,7 +87,7 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
        });
     });
-    this.packets.on('SUBMIT_JOB_BG', function (data) {
+    this.packets.accept('SUBMIT_JOB_BG', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -97,7 +97,7 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
         });
     });
-    this.packets.on('SUBMIT_JOB_HIGH_BG', function (data) {
+    this.packets.accept('SUBMIT_JOB_HIGH_BG', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -107,7 +107,7 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
         });
     });
-    this.packets.on('SUBMIT_JOB_LOW_BG', function (data) {
+    this.packets.accept('SUBMIT_JOB_LOW_BG', function (data) {
         self.emit('submit-job', {
             client: self,
             function: data.args.function,
@@ -117,33 +117,33 @@ var ServerConnection = module.exports = function (server,options) {
             body: data.body
         });
     });
-    this.packets.on('GET_STATUS', function (data) {
+    this.packets.accept('GET_STATUS', function (data) {
         self.emit('get-status',data.args.job,client);
     });
-    this.packets.on('GRAB_JOB', function (data) {
+    this.packets.accept('GRAB_JOB', function (data) {
         self.status='active';
         self.emit('grab-job',self,false);
     });
-    this.packets.on('GRAB_JOB_UNIQ', function (data) {
+    this.packets.accept('GRAB_JOB_UNIQ', function (data) {
         self.status='active';
         self.emit('grab-job',self,true);
     });
-    this.packets.on('WORK_COMPLETE', function (data) {
+    this.packets.accept('WORK_COMPLETE', function (data) {
         self.server.workComplete(self,data.args.job,data.body);
     });
-    this.packets.on('WORK_DATA', function (data) {
+    this.packets.accept('WORK_DATA', function (data) {
         self.server.workData(self,data.args.job,data.body);
     });
-    this.packets.on('WORK_STATUS', function (data) {
+    this.packets.accept('WORK_STATUS', function (data) {
         self.server.workStatus(self,data.args.job,data.args.complete,data.args.total);
     });
-    this.packets.on('WORK_FAIL', function (data) {
+    this.packets.accept('WORK_FAIL', function (data) {
         self.server.workFail(self,data.args.job);
     });
-    this.packets.on('WORK_EXCEPTION', function (data) {
+    this.packets.accept('WORK_EXCEPTION', function (data) {
         self.server.workException(self,data.args.job,data.body);
     });
-    this.packets.on('WORK_WARNING', function (data) {
+    this.packets.accept('WORK_WARNING', function (data) {
         self.server.workWarning(self,data.args.job,data.body);
     });
     // ALL_YOURS, SUBMIT_JOB_SCHED, SUBMIT_JOB_EPOCH

@@ -5,13 +5,13 @@ var stream = require('stream');
 var StreamReplay = require('./stream-replay');
 var through = require('through2');
 
-var UniqueJob = require('./server-job-multi');
+var MultiJob = require('./server-job-multi');
 
 var BgJob = module.exports = function (id, func, uniqueid, priority, body) {
-    UniqueJob.call(this, id, func, uniqueid, priority, body);
+    MultiJob.call(this, id, func, uniqueid, priority, body);
     this.background = true;
 }
-util.inherits( BgJob, UniqueJob );
+util.inherits( BgJob, MultiJob );
 
 BgJob.prototype.addClient = function(client) { }
 BgJob.prototype.removeClient = function(client) { }

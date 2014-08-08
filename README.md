@@ -83,8 +83,8 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   * *host* (default: 127.0.0.1)
   * *port* (default: 4730)
   * *streaming* (default: false) -- Requests the Abraxas server's streaming
-    mode.  If you request this with the C++ gearmand you'll get a
-    connection error.
+    mode. Makes workers streaming data back over WORK_DATA safe. If you
+    request this with the C++ gearmand you'll get a connection error.
   * *defaultEncoding* (default: buffer) -- The stream encoding to use for
     client and worker payloads, unless otherwise specified.
   * *maxJobs* (default: 1) -- The maximum number of jobs to handle at once.

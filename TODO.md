@@ -6,7 +6,7 @@ missing many important things:
 * Spooling jobs to disk as they come in, rather then memory (StreamReplay)
   This should be plugable, with at least memory and disk backends.
 * Job queueing currently involves scanning the entire list of jobs. This is
-  likely a scalaing choke point, but load testing is called for first.
+  likely a choke point, but load testing is called for first.
 * Admin commmands!
 * Worker failure retries should do the exponential backoff dance, rather then immediately requeueing.
 

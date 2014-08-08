@@ -28,5 +28,5 @@ future packets sent to that job, but you will not receive the history up to
 this point.  This means you will not see any WORK_DATA, WORK_STATUS or
 WORK_WARNING packets already sent to the original client. 
 
-In Abraxas streaming mode, a second uniqueid id connection will receive all
-of the previous WORK_DATA, WORK_STATUS or WORK_WARNING messages.
+In Abraxas streaming mode, a uniqueids on foreground jobs are not allowed
+and result in an error.  Uniqueids are only allowed for background jobs.

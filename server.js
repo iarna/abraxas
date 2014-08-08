@@ -143,6 +143,10 @@ Server.prototype.getStatus = function (jobid,client) {
 
 Server.prototype.submitJob = function (args) {
     var self = this;
+    if (args.client.feature.streaming && ! args.background && args.uniqueid != '' && args.uniqueid != null) {
+        args.client.sendErrorNoUniqueFg();
+        return;
+    }
     var job;
     if (this.jobs['unique:'+args.uniqueid]) {
         job = this.jobs['unique:'+args.uniqueid];

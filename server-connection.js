@@ -196,6 +196,15 @@ ServerConnection.prototype.sendErrorNoSuchJob = function (jobid,callback) {
     },callback);
 }
 
+ServerConnection.prototype.sendErrorNoUniqueFg = function (callback) {
+    this.write({
+        kind: 'response',
+        type: packet.types['ERROR'],
+        args: { errorcode: 'NO_SUCH_JOB' },
+        body: 'Can\'t create a foreground job with a uniqueid with streaming enabled'
+    },callback);
+}
+
 ServerConnection.prototype.sendOptionResult = function (option,callback) {
     this.write({
         kind: 'response',

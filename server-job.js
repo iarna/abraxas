@@ -6,10 +6,10 @@ var MultiClientJob = exports.MultiClientJob = require('./server-job-multi');
 var BackgroundJob = exports.BackgroundJob = require('./server-job-background');
 
 exports.create = function (func, background, uniqueid, priority, body) {
-    var id = (uniqueid == '' || uniqueid == null)
-           ? 'job:' + (++ exports.maxJobId)
-           : 'unique:' + uniqueid;
-    var isUnique = false;
+    var isUnique = uniqueid != '' && uniqueid != null;
+    var id = isUnique
+           ? 'unique:' + uniqueid
+           : 'job:' + (++ exports.maxJobId);
     if (background) {
         return new BackgroundJob(id, func, uniqueid, priority, body);
     }

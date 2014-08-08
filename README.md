@@ -113,12 +113,14 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   * If it disconnects in the middle of a job, the server will send a
     WORK_FAIL response instead of requeing the job.
 
+  * Writes are not buffered and are immediately sent with WORK_DATA packets.
+    (Ordinarily writes are buffered and only sent when the worker ends with
+    a WORK_COMPLETE packet.)
+
   When the client is in streaming mode:
 
-  * When it submits a uniqueid job and attaches to an already running job,
-    it will receive all of the WORK_DATA/WORK_WARNING/WORK_STATUS that were
-    sent prior to its attaching to the job.  (Without streaming, only *new*
-    packets are sent.)
+  * Submitting uniqueid foreground jobs is an error and your job will
+    immediately fail without being submitted.
 
 * **client.connected**
 

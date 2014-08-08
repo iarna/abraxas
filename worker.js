@@ -1,5 +1,6 @@
 "use strict";
 var packet = require('gearman-packet');
+var toBuffer = packet.Emitter.prototype.toBuffer;
 var stream = require('stream');
 var util = require('util');
 var WorkerTask = require('./task-worker');
@@ -141,19 +142,40 @@ Worker.dispatchWorker = function (job) {
     if (options.encoding) job.body.setEncoding(options.encoding);
     var task = new WorkerTask(job.body,options);
 
-    task.writer.on('data', function (data) {
-        if (!self.connected) return;
-        self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
-    });
+    if (this.feature.streaming) {
+        task.writer.on('data', function (data) {
+            if (!self.connected) return;
+            self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
+        });
 
-    task.writer.on('end', function () {
-        if (self.connected) {
-            var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
-            if (task.lastChunk) end.body = task.lastChunk;
-            self.socket.write(end, options.encoding);
+        task.writer.on('end', function () {
+            if (self.connected) {
+                var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
+                if (task.lastChunk) end.body = task.lastChunk;
+                self.socket.write(end, options.encoding);
+            }
+            self.endWork(jobid);
+        });
+    }
+    else {
+        var buffer = new Buffer(0);
+        var addToBuffer = function (thing) {
+            buffer = Buffer.concat([buffer,toBuffer(thing)]);
         }
-        self.endWork(jobid);
-    });
+        task.writer.on('data', function (data) {
+            if (!self.connected) return;
+            addToBuffer(data);
+        });
+
+        task.writer.on('end', function () {
+            if (self.connected) {
+                if (task.lastChunk) addToBuffer(task.lastChunk);
+                var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}, body: buffer};
+                self.socket.write(end, options.encoding);
+            }
+            self.endWork(jobid);
+        });
+    }
     
     try {
         var handleReturnValue = function (value) {

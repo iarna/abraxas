@@ -25,7 +25,8 @@ PacketHandler.prototype._write = function (packet, encoding, callback) {
 }
 
 PacketHandler.prototype.acceptDefault = function (event, callback) {
-    if (this.defaultHandler[event]) throw new Error("Tried to register a second default handler for the "+event+" packet");
+    if (this.defaultHandler[event]) throw "Tried to register a second default handler for the "+event+" packet";
+    if (this.handler[event]) throw new Error("Tried to register default handler when we already have an accept-all handler for the "+event+" packet");
     this.defaultHandler[event] = callback;
 }
 
@@ -35,7 +36,8 @@ PacketHandler.prototype.removeDefault = function (event) {
 }
 
 PacketHandler.prototype.accept = function (event, callback) {
-    if (this.handler[event]) throw new Error("Tried to register a second default handler for the "+event+" packet");
+    if (this.defaultHandler[event]) throw new Error("Tried to register accept-all handler when we already have a default handler for the "+event+" packet");
+    if (this.handler[event]) throw new Error("Tried to register a second accept-all handler for the "+event+" packet");
     this.handler[event] = callback;
 }
 
@@ -45,6 +47,7 @@ PacketHandler.prototype.removeHandler = function (event) {
 }
 
 PacketHandler.prototype.acceptSerial = function (event, callback) {
+    if (this.handler[event]) throw new Error("Tried to register a serial handler when we already have an accept-all handler for the "+event+" packet");
     if (!this.serialHandler[event]) this.serialHandler[event] = [];
     this.serialHandler[event].push(callback);
 }

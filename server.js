@@ -53,7 +53,7 @@ Server.prototype.acceptConnection = function (socket) {
     extend( options, this.options );
     options.socket = socket;
     options.id     = id;
-    var client = this.clients[id] = new ServerConnection(this,options);
+    var client = this.clients[id] = new ServerConnection(options);
 
     client.on('error',function(e) { client.destroy() });
 

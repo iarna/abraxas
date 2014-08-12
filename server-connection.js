@@ -3,10 +3,9 @@ var util = require('util');
 var AbraxasSocket = require('./socket');
 var packet = require('gearman-packet');
 
-var ServerConnection = module.exports = function (server,options) {
+var ServerConnection = module.exports = function (options) {
     AbraxasSocket.call(this,options);
 
-    this.server = server;
     this.id = options.id;
     this.feature = {
         exceptions: false,
@@ -46,10 +45,6 @@ var ServerConnection = module.exports = function (server,options) {
 
     this.packets.accept('RESET_ABILITIES', function () {
         self.emit('remove-all-workers', self);
-    });
-
-    this.connection.on('end', function() {
-        self.emit('disconnect',self);
     });
 
     this.packets.accept('PRE_SLEEP', function (data) {
@@ -129,22 +124,22 @@ var ServerConnection = module.exports = function (server,options) {
         self.emit('grab-job',self,true);
     });
     this.packets.accept('WORK_COMPLETE', function (data) {
-        self.server.workComplete(self,data.args.job,data.body);
+        self.emit('work-complete',self,data.args.job,data.body);
     });
     this.packets.accept('WORK_DATA', function (data) {
-        self.server.workData(self,data.args.job,data.body);
+        self.emit('work-data',self,data.args.job,data.body);
     });
     this.packets.accept('WORK_STATUS', function (data) {
-        self.server.workStatus(self,data.args.job,data.args.complete,data.args.total);
+        self.emit('work-status',self,data.args.job,data.args.complete,data.args.total);
     });
     this.packets.accept('WORK_FAIL', function (data) {
-        self.server.workFail(self,data.args.job);
+        self.emit('work-fail',self,data.args.job);
     });
     this.packets.accept('WORK_EXCEPTION', function (data) {
-        self.server.workException(self,data.args.job,data.body);
+        self.emit('work-exception',self,data.args.job,data.body);
     });
     this.packets.accept('WORK_WARNING', function (data) {
-        self.server.workWarning(self,data.args.job,data.body);
+        self.emit('work-warning',self,data.args.job,data.body);
     });
     // ALL_YOURS, SUBMIT_JOB_SCHED, SUBMIT_JOB_EPOCH
     // plus all of admin
@@ -168,8 +163,8 @@ ServerConnection.prototype.removeJob = function (job) {
 }
 
 ServerConnection.prototype.getJobs = function () {
-    var jobs = this.jobs;
-    return Object.keys(this.jobs).map(function(k){ return jobs[k] });
+    var self = this;
+    return Object.keys(this.jobs).map(function(k){ return self.jobs[k] });
 }
 
 ServerConnection.prototype.write = function (packet,callback) {
@@ -264,7 +259,7 @@ ServerConnection.prototype.sendNoJob = function (callback) {
 }
 
 ServerConnection.prototype.sendWorkComplete = function (jobid,body,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_COMPLETE'],
         args: { job: jobid },
@@ -273,7 +268,7 @@ ServerConnection.prototype.sendWorkComplete = function (jobid,body,callback) {
 }
 
 ServerConnection.prototype.sendWorkData = function (jobid,body,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_DATA'],
         args: { job: jobid },
@@ -282,7 +277,7 @@ ServerConnection.prototype.sendWorkData = function (jobid,body,callback) {
 }
 
 ServerConnection.prototype.sendWorkWarning = function (jobid,body,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_WARNING'],
         args: { job: jobid },
@@ -291,7 +286,7 @@ ServerConnection.prototype.sendWorkWarning = function (jobid,body,callback) {
 }
 
 ServerConnection.prototype.sendWorkException = function (jobid,body,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_EXCEPTION'],
         args: { job: jobid },
@@ -300,7 +295,7 @@ ServerConnection.prototype.sendWorkException = function (jobid,body,callback) {
 }
 
 ServerConnection.prototype.sendWorkStatus = function (jobid,complete,total,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_STATUS'],
         args: { job: jobid, complete: complete, total: total }
@@ -308,7 +303,7 @@ ServerConnection.prototype.sendWorkStatus = function (jobid,complete,total,callb
 }
 
 ServerConnection.prototype.sendWorkFail = function (jobid,callback) {
-    var flushed = this.write({
+    this.write({
         kind: 'response',
         type: packet.types['WORK_FAIL'],
         args: { job: jobid }

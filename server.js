@@ -247,6 +247,7 @@ Server.prototype.workException = function (client,jobid,body) {
 Server.prototype.workFail = function (client,jobid,body) {
     this.withJob(client,jobid,function(job) {
         job.sendWorkFail();
+        delete this.jobs[jobid];
     });
 }
 

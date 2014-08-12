@@ -474,6 +474,10 @@ var Gearman = require('abraxas');
 Gearman.Server.listen({port: 4730});
 ```
 
+WARNING
+
+The server is known to have memory leaks.
+
 TO BE DOCUMENTED
 
 But really, that above is about all there is to it right now. It takes the same

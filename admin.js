@@ -61,11 +61,11 @@ exports.workers = function (callback) {
 
 var acceptSerialWithError = function (packets, event, callback) {
     var success = function (data) {
-        packets.unacceptSerial('error', failure);
+        packets.removeSerial('error', failure);
         callback(null, data);
     }
     var failure = function (data) {
-        packets.unacceptSerial(event, success);
+        packets.removeSerial(event, success);
         packets.constructError(data, callback);
     }
     packets.acceptSerial(event, success);

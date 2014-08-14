@@ -18,10 +18,13 @@ exports.echo = function (options, data, callback) {
     var self = this;
     var task = this.newTask(callback, options);
     task.prepareBody(data, function(data) {
-        self.packets.acceptSerial('ECHO_RES', function (result) {
-            task.acceptResult(result.body);
+        self.getConnection(options.timeout,function(err,conn){
+            if (err) return task.acceptError(err);
+            conn.packets.acceptSerial('ECHO_RES', function (result) {
+                task.acceptResult(result.body);
+            });
+            conn.socket.write({kind:'request',type:packet.types['ECHO_REQ'],body:data});
         });
-        self.socket.write({kind:'request',type:packet.types['ECHO_REQ'],body:data});
     });
     return task;
 }

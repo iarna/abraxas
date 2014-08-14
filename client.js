@@ -2,79 +2,121 @@
 var net = require('net');
 var util = require('util');
 var events = require('events');
-var packet = require('gearman-packet');
 var extend = require('util-extend');
 var ClientTask = require('./task-client');
 var streamToBuffer = require('./stream-to-buffer');
-var AbraxasSocket = require('./socket');
 var AbraxasError  = require('./errors');
+var ClientConnection = require('./client-connection');
+var backoff = require('backoff');
+
+var workerConstruct = require('./worker').__construct;
+var workerInit = require('./worker').__initialize;
 
 var AbraxasClient = module.exports = function (options) {
-    AbraxasSocket.call(this,options);
-
-    this.feature = {
-        exceptions: false,
-        streaming: false
-    };
-
-    this.packets.acceptDefault('ERROR', function (data) {
-        streamToBuffer(data.body,function(err, body) {
-            if (err) {
-                self.emitError(new AbraxasError.Receive());
-            }
-            else {
-                self.emitError(new AbraxasError.Server(data.args.errorcode,body));
-            }
-        });
-    });
-
-    this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
+    this.options = options;
     var self = this;
-    this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
-        if (err) return;
-        if (data.args.option == 'exceptions') {
-            self.feature.exceptions = true;
-        }
+    this.connections = options.servers.map(function(connect){
+        var C = {};
+        C.socket = null;
+        // Every connection is managed by a backoff object. This
+        // controls how often we try to connect to the server.
+        C.connect = backoff.fibonacci({
+            initialDelay: 1,
+            randomisationFactor: 0.15,
+            maxDelay: 10000,
+        })
+        C.connect.on('ready', function () {
+            // open the tcp connection
+            var socket = connect(function() {
+                var cliopts = {};
+                extend(cliopts, options);
+                options.socket = socket;
+                // handshake with server
+                var client = new ClientConnection(options,function() {
+                    client.removeListener('error', C.connect.backoff);
+                    // if that went well, we get to continue
+                    C.connect.reset();
+                    C.socket = client;
+                    client.on('disconnect', function () {
+                        C.socket = null;
+                        C.connect.backoff();
+                        self.emit('__disconnect',C);
+                    });
+                    client.on('error', function (error) {
+                        self.emit('error',error,C);
+                    });
+                    self.emit('__connect',C);
+                });
+                client.once('error', C.connect.backoff);
+                socket.removeListener('error', C.connect.backoff);
+            });
+            socket.once('error',C.connect.backoff);
+        });
+        C.connect.backoff();
+        return C;
     });
 
-    if (options.streaming) {
-        this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
-        var trace = AbraxasError.trace(AbraxasClient);
-        this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
-            if (err) {
-                if (err.code == 'UNKNOWN_OPTION') {
-                    self.emitError(trace.withError(new AbraxasError.NoStreaming));
-                }
-                else {
-                    self.emitError(trace.withError(err));
-                }
-                return;
-            }
-            if (data.args.option == 'streaming') {
-                self.feature.streaming = true;
-            }
-        });
-    }
-
-    require('./worker').construct.call(this);
+    workerConstruct.call(this);
 }
-util.inherits( AbraxasClient, AbraxasSocket );
+AbraxasClient.prototype = {};
 
 extend( AbraxasClient.prototype, require('./echo') );
-extend( AbraxasClient.prototype, require('./admin') );
-extend( AbraxasClient.prototype, require('./client-jobs') );
-extend( AbraxasClient.prototype, require('./worker').Worker );
+//extend( AbraxasClient.prototype, require('./admin') );
+//extend( AbraxasClient.prototype, require('./client-jobs') );
+//extend( AbraxasClient.prototype, require('./worker').Worker );
 
-AbraxasClient.connect = function(options,callback) {
-    if (!callback && typeof options == 'function') {
-        callback = options; options = null;
+AbraxasClient.prototype.getConnectedServers = function () {
+    return this.connections.filter(function(C){ return C.socket });
+}
+
+AbraxasClient.prototype.getConnection = function (timeout,callback) {
+    if (!timeout) timeout = this.options.timeout;
+    var connections = this.getConnectedServers.sort(function(A,B){ return A.lastused < B.lastused });
+    if (connections.length) {
+        var connection = connections[0];
+        connection.lastused = new Date();
+        process.nextTick(function(){ callback(null,connection.socket) });
+        return;
     }
+    var timer;
+    if (timeout) timer = setTimeout(function () { callback(new Error('Timeout while waiting for connection')) });
+    this.once('__connect',function (C){
+        if (timer) clearTimeout(timer);
+        C.lastused = new Date();
+        callback(null, C.socket);
+    });
+}
+
+AbraxasClient.connect = function(options) {
     if (!options) options = {};
-    if (options.host || !options.path) {
-        options.host = '127.0.0.1';
-        if (!options.port) options.port = 4730;
+
+    if (options.servers) {
+        options.servers = options.servers.map(function(server){
+            if (server instanceof Function) return server;
+            var connectopts = {};
+            if (typeof server == 'string') {
+                var chunks = server.split(':');
+                conectopts.host = chunks[0]; connectopts.port = chunks[1];
+                if (!connectopts.host) options.host = '127.0.0.1';
+                if (!connectopts.port) optionsport = 4730;
+            }
+            else {
+                connectopts = server;
+                if (server.host || !server.path) {
+                    if (!connectopts.host) options.host = '127.0.0.1';
+                    if (!connectopts.port) optionsport = 4730;
+                }
+            }
+            return function (cb) { return net.connect(connectopts, cb) };
+        });
     }
-    options.socket = net.connect(options, callback);
+    else {
+        if (options.host || !options.path) {
+            if (!options.host) options.host = '127.0.0.1';
+            if (!options.port) options.port = 4730;
+        }
+        options.servers = [function (cb) { return net.connect(options, cb) }];
+    }
     return new AbraxasClient(options,callback);
 }
 

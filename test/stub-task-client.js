@@ -7,6 +7,9 @@ module.exports = function (callback,options) {
         prepareBody: function (data,todo) { todo(data) },
         acceptResult: function(body) {
             this.result = body;
+        },
+        acceptError: function (error) {
+            this.error = error;
         }
     }
 }

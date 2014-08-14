@@ -10,7 +10,7 @@ Send:
     ALL_YOURS: {id: 24, args: []},
 */
 
-exports.construct = function () {
+exports.__construct = function (init) {
     this._workers = {};
     this._workersCount = 0;
 
@@ -21,14 +21,16 @@ exports.construct = function () {
         this.options.maxJobs = 1;
     }
 
-    var self = this;
-    this.packets.accept('NO_JOB', function(data) {
-        if (!self.socket) return;
-        self.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
+}
+exports.__initialize = function (obj) {
+    obj.packets.accept('NO_JOB', function(data) {
+        if (!obj.socket) return;
+        obj.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
     });
 
-    this.packets.accept('NOOP', function(data) { self.askForWork() });
+    obj.packets.accept('NOOP', function(data) { obj.askForWork() });
 }
+
 var Worker = exports.Worker = {};
 
 Worker.setClientId = function (id) {

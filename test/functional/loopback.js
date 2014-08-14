@@ -36,7 +36,7 @@ var connect = function (options) {
     socket.in.remoteAddress = 'Server'; socket.in.remotePort = socket.id;
     socket.out.remoteAddress = 'Client';  socket.out.remotePort = socket.id;
     server.emit('connection',socket.in);
-    options.socket = socket.out;
+    options.servers = [function (cb) { process.nextTick(cb); return socket.out }];
     if (!options.defaultEncoding) options.defaultEncoding = 'utf8';
     var gmc = new Gearman.Client(options);
     socket.in.emit('connect');

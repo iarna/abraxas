@@ -5,25 +5,30 @@ var types = require('gearman-packet').types;
 var echolib = require('../echo');
 
 echolib.newTask = require('./stub-task-client');
-echolib.packets = require('./stub-packets');
-echolib.socket  = require('./stub-socket');
+var connection = {
+    packets: require('./stub-packets'),
+    socket: require('./stub-socket'),
+}
+echolib.getConnection = function (timeout,cb) { process.nextTick(function(){ cb(null,connection) }) }
 
 function echoTest(todo) {
     return function (t) {
         t.plan(7);
         var argsOrVal = function (k) { return typeof k == 'number' ? todo.args[k] : k }
         var task = echolib.echo.apply(echolib,todo.args);
-        var lastAccept = echolib.packets.getLastAccept();
+        setImmediate(function(){
+        var lastAccept = connection.packets.getLastAccept();
         t.is(lastAccept.length, 1, 'Only waiting for one packet');
         t.is(lastAccept[0].kind, 'ECHO_RES', 'Waiting for an echo response');
         var result = {body: 'test'};
         lastAccept[0].callback(result);
         t.is(task.result,result.body, 'Accepted result body');
         t.is(task.callback, argsOrVal(todo.callback), 'Expected callback');
-        var out = echolib.socket.getLastWrite();
+        var out = connection.socket.getLastWrite();
         t.is(out.type, types['ECHO_REQ'], 'Created an echo request packet');
         t.is(out.body, argsOrVal(todo.data), 'Expected data');
         t.deepEqual(task.options, argsOrVal(todo.options), 'Expected options');
+        });
     };
 }
 test('no args', echoTest({args:[], options: {}, data: void 0, callback: void 0}));

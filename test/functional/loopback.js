@@ -1,7 +1,8 @@
 "use strict";
 var Gearman = require('../../index.js');
 var extend = require('util-extend');
-var stream = require('readable-stream');
+//var stream = require('readable-stream');
+var stream = require('stream');
 var events = require('events');
 var util = require('util');
 var DuplexCombination = require('duplex-combination');

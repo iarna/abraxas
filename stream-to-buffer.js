@@ -6,4 +6,5 @@ module.exports = function streamToBuffer(stream,callback) {
     stream.on('data',function(B) { buffer = Buffer.concat([buffer,B],buffer.length+B.length) });
     stream.on('error',function(E) { error = true; callback(E) });
     stream.on('end', function () { if (! error) callback(null,buffer) });
+    stream.resume();
 }

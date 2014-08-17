@@ -1,7 +1,7 @@
 "use strict";
 
 var CondVar = module.exports = function (cb) {
-    if (!(this instanceof CondVar)) return new CondVar();
+    if (!(this instanceof CondVar)) return new CondVar(cb);
     this.depth = 0;
     this.completed = false;
     this.onComplete = cb;
@@ -19,8 +19,4 @@ CondVar.prototype.end = function () {
         this.completed = true;
         if (this.onComplete) process.nextTick(this.onComplete);
     }
-}
-CondVar.prototype.complete = function (cb) {
-    if (this.completed) return process.nextTick(cb);
-    this.onComplete = cb;
 }

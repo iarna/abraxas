@@ -1,7 +1,7 @@
 "use strict";
 var packet = require('gearman-packet');
 var toBuffer = packet.Emitter.prototype.toBuffer;
-var stream = require('stream');
+var stream = require('readable-stream');
 var util = require('util');
 var WorkerTask = require('./task-worker');
 /*
@@ -20,15 +20,28 @@ exports.__construct = function (init) {
     if (!this.options.maxJobs) {
         this.options.maxJobs = 1;
     }
+    var self = this;
+    this.on('__connect', function (conn) { 
+        conn.socket.packets.accept('NO_JOB', function(data) {
+            if (!conn.socket.socket) return;
+            conn.socket.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
+        });
 
-}
-exports.__initialize = function (obj) {
-    obj.packets.accept('NO_JOB', function(data) {
-        if (!obj.socket) return;
-        obj.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
+        conn.socket.packets.accept('NOOP', function(data) { conn.socket.askForWork() });
+        if (! this._workersCount) return;
+        conn.socket.ref();
+        conn.socket.packets.accept('JOB_ASSIGN_UNIQ', conn.socket.onJobAssign = function(job) { self.dispatchWorker(job) });
+        for (var func in self._workers) {
+            var worker = self._workers[worker];
+            if (worker.options.timeout) {
+                this.socket.write({kind:'request',type:packet.types['CAN_DO_TIMEOUT'], args:{function: func, timeout: worker.options.timeout}});
+            }
+            else {
+                this.socket.write({kind:'request',type:packet.types['CAN_DO'], args:{function: func}});
+            }
+        }
     });
 
-    obj.packets.accept('NOOP', function(data) { obj.askForWork() });
 }
 
 var Worker = exports.Worker = {};
@@ -83,19 +96,21 @@ Worker.registerWorker = function (func, options, worker) {
     if (this._workers[func]) {
         this.emit('warn', new Error('Redefining worker for '+func));
     }
-    else {
-        if (this._workersCount++ == 0) {
-            var self = this;
-            this.ref();
-            this.packets.accept('JOB_ASSIGN_UNIQ', this.onJobAssign = function(job) { self.dispatchWorker(job) });
+    else if (this._workersCount++ == 0) {
+        var self = this;
+        this.getConnectedServers().forEach(function(conn) {
+            conn.ref();
+            conn.packets.accept('JOB_ASSIGN_UNIQ', conn.onJobAssign = function(job) { self.dispatchWorker(job) });
+        });
+    }
+    this.getConnectedServers().forEach(function(conn) {
+        if (options.timeout) {
+            conn.socket.write({kind:'request',type:packet.types['CAN_DO_TIMEOUT'], args:{function: func, timeout: options.timeout}});
         }
-    }
-    if (options.timeout) {
-        this.socket.write({kind:'request',type:packet.types['CAN_DO_TIMEOUT'], args:{function: func, timeout: options.timeout}});
-    }
-    else {
-        this.socket.write({kind:'request',type:packet.types['CAN_DO'], args:{function: func}});
-    }
+        else {
+            conn.socket.write({kind:'request',type:packet.types['CAN_DO'], args:{function: func}});
+        }
+    });
     this._workers[func] = {options: options, handler: worker};
     this.askForWork();
     var self = this;
@@ -142,6 +157,7 @@ Worker.dispatchWorker = function (job) {
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
     if (options.encoding == 'buffer') options.encoding = null;
     if (options.encoding) job.body.setEncoding(options.encoding);
+
     var task = new WorkerTask(job.body,options);
 
     if (this.feature.streaming) {
@@ -158,6 +174,7 @@ Worker.dispatchWorker = function (job) {
             }
             self.endWork(jobid);
         });
+        task.write.resume();
     }
     else {
         var buffer = new Buffer(0);
@@ -177,6 +194,8 @@ Worker.dispatchWorker = function (job) {
             }
             self.endWork(jobid);
         });
+
+        task.writer.resume();
     }
     
     try {

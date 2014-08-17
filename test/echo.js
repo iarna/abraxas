@@ -1,6 +1,6 @@
 "use strict";
 var test = require('tape');
-var stream = require('stream');
+var stream = require('readable-stream');
 var types = require('gearman-packet').types;
 var echolib = require('../echo');
 

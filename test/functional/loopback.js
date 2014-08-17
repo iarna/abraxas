@@ -1,7 +1,7 @@
 "use strict";
 var Gearman = require('../../index.js');
 var extend = require('util-extend');
-var stream = require('stream');
+var stream = require('readable-stream');
 var events = require('events');
 var util = require('util');
 var DuplexCombination = require('duplex-combination');
@@ -32,6 +32,8 @@ var gms = new Gearman.Server({socket: server});
 
 var connect = function (options) {
     if (!options) options = {};
+//    options.packetDump = true;
+//    options.trafficDump = true;
     var socket = createFakeSocketPair();
     socket.in.remoteAddress = 'Server'; socket.in.remotePort = socket.id;
     socket.out.remoteAddress = 'Client';  socket.out.remotePort = socket.id;

@@ -20,6 +20,7 @@ exports.echo = function (options, data, callback) {
     task.prepareBody(data, function(data) {
         self.getConnection(options.timeout,function(err,conn){
             if (err) return task.acceptError(err);
+            task.addConnection(conn);
             conn.packets.acceptSerial('ECHO_RES', function (result) {
                 task.acceptResult(result.body);
             });

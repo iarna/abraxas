@@ -10,7 +10,6 @@ var ClientConnection = require('./client-connection');
 var backoff = require('backoff');
 
 var workerConstruct = require('./worker').__construct;
-var workerInit = require('./worker').__initialize;
 
 var AbraxasClient = module.exports = function (options) {
     this.options = options;
@@ -58,12 +57,12 @@ var AbraxasClient = module.exports = function (options) {
 
     workerConstruct.call(this);
 }
-AbraxasClient.prototype = {};
+util.inherits( AbraxasClient, events.EventEmitter );
 
 extend( AbraxasClient.prototype, require('./echo') );
-//extend( AbraxasClient.prototype, require('./admin') );
-//extend( AbraxasClient.prototype, require('./client-jobs') );
+extend( AbraxasClient.prototype, require('./client-jobs') );
 //extend( AbraxasClient.prototype, require('./worker').Worker );
+//extend( AbraxasClient.prototype, require('./admin') );
 
 AbraxasClient.prototype.getConnectedServers = function () {
     return this.connections.filter(function(C){ return C.socket });
@@ -71,7 +70,7 @@ AbraxasClient.prototype.getConnectedServers = function () {
 
 AbraxasClient.prototype.getConnection = function (timeout,callback) {
     if (!timeout) timeout = this.options.timeout;
-    var connections = this.getConnectedServers.sort(function(A,B){ return A.lastused < B.lastused });
+    var connections = this.getConnectedServers().sort(function(A,B){ return A.lastused < B.lastused });
     if (connections.length) {
         var connection = connections[0];
         connection.lastused = new Date();
@@ -79,7 +78,12 @@ AbraxasClient.prototype.getConnection = function (timeout,callback) {
         return;
     }
     var timer;
-    if (timeout) timer = setTimeout(function () { callback(new Error('Timeout while waiting for connection')) });
+    if (timeout) {
+        timer = setTimeout(function () { callback(new Error('Timeout while waiting for connection')) });
+    }
+    else {
+        timer = setTimeout(function keepalive() { timer = setTimeout(keepalive,86400000) }, 86400000);
+    }
     this.once('__connect',function (C){
         if (timer) clearTimeout(timer);
         C.lastused = new Date();
@@ -121,19 +125,6 @@ AbraxasClient.connect = function(options) {
 }
 
 AbraxasClient.prototype.newTask = function (callback,options) {
-    if (!options) options = {};
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
-    if (options.encoding == 'buffer') delete options.encoding;
-    var task = new ClientTask(callback,options);
-    this.ref();
-    var self = this;
-    var connectionClose = function (had_error){
-        task.acceptError(new AbraxasError.Socket('connection '+(had_error?'error':'closed')));
-    };
-    this.connection.once('close', connectionClose);
-    task.once('close',function(){
-        self.unref();
-        self.connection.removeListener('close', connectionClose);
-    });
-    return task;
+    return new ClientTask(callback,options);
 }

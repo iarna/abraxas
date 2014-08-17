@@ -15,9 +15,9 @@
     "concat-stream": "^1.4.6",
     "duplex-combination": "^1.1.1",
     "gearman-packet": "^1.0.0",
+    "readable-stream": "~1.0.0",
     "shallow-copy": "^0.0.1",
     "standard-error": "^1.1.0",
-    "through2": "^1.0.0",
     "util-extend": "^1.0.1"
   },
   "main": "index.js",

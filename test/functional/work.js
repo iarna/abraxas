@@ -8,6 +8,7 @@ test('work', function (t) {
     t.plan(2);
 
     var gmw = Gearman.Client.connect({packetDump: false});
+    console.log(gmw.registerWorker);
     gmw.registerWorker('upper',function (task) {
         task.then(function(payload) {
             task.end(payload.toUpperCase());
@@ -29,7 +30,7 @@ test('work', function (t) {
     })
     
 });
-
+/*
 test('error', function (t) {
     t.plan(2);
 
@@ -89,3 +90,4 @@ test('work-multiple-serial', function (t) {
     })
 
 });
+*/

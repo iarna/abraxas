@@ -1,11 +1,13 @@
 "use strict";
-var stream = require('stream');
+var stream = require('readable-stream');
+var isaStream = require('isa-stream');
 var util = require('util');
 var concat = require('concat-stream');
 var Task = require('./task');
 
 var ClientTask = module.exports = function ClientTask(callback,options) {
     if (!options) options = {};
+    if (options.encoding == 'buffer') delete options.encoding;
     this.options = options;
     var accept = new stream.PassThrough(options.accept);
     var transmit = new stream.PassThrough(options.transmit);
@@ -30,6 +32,19 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
     this.on('end', function () { self.emit('close') });
 }
 util.inherits(ClientTask, Task);
+
+ClientTask.prototype.addConnection = function (connection) {
+    var self = this;
+    connection.ref();
+    var connectionClose = function (had_error){
+        self.acceptError(new AbraxasError.Socket('connection '+(had_error?'error':'closed')));
+    };
+    connection.once('close', connectionClose);
+    this.once('close',function(){
+        connection.unref();
+        connection.connection.removeListener('close', connectionClose);
+    });
+}
 
 ClientTask.prototype.end = function () {
     Task.prototype.end.call(this);
@@ -70,7 +85,7 @@ ClientTask.prototype.prepareBody = function (body, callback) {
         body.then(function(realbody){ self.prepareBody(realbody,callback) });
         return;
     }
-    else if (body instanceof stream.Readable) {
+    else if (isaStream.Readable(body)) {
         if (this.options.bodySize) body.length = this.options.bodySize;
         if (body.length == null) {
             body.pipe(concat(function(realbody) {

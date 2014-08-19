@@ -29,6 +29,7 @@ var AbraxasSocket = module.exports = function (options) {
     var self = this;
 
     this.connection = options.socket;
+    this.connection.setMaxListeners(0);
 
     this.connected = false;
     this.connection.on('connect',function(){ self.connected = true; self.emit('connect',self) });

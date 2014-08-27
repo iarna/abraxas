@@ -70,9 +70,9 @@ AbraxasClient.connect = function(options,callback) {
         callback = options; options = null;
     }
     if (!options) options = {};
-    if (options.host || !options.path) {
-        options.host = '127.0.0.1';
-        if (!options.port) options.port = 4730;
+    if (!options.path) {
+      if (!options.host) options.host = '127.0.0.1';
+      if (!options.port) options.port = 4730;
     }
     options.socket = net.connect(options, callback);
     return new AbraxasClient(options,callback);

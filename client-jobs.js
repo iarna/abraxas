@@ -3,30 +3,35 @@ var packet = require('gearman-packet');
 var stream = require('readable-stream');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError = require('./errors');
+var ClientTask = require('./task-client');
 
-// FIXME: Make this run against ALL job servers and return whichever knows about it.
 var getStatus = exports.getStatus = function (jobid,options,onComplete) {
-    if (options instanceof Function) {
-        onComplete = options;
-        options = null;
-    }
+    if (options instanceof Function) { onComplete = options; options = null }
     if (! options) options = {};
     options.accept = {objectMode: true};
-    optiosn.nobody = true;
+    options.nobody = true;
 
-    var trace = AbraxasError.trace(getStatus);
-    return this.startTask(onComplete,options, function (task) {
-        task.conn.getStatus(jobid, function (error,data) {
-            if (error) return task.acceptError(trace.withError(error));
-            var status = {};
-            status.known = Number(data.args.known);
-            status.running = Number(data.args.running);
-            var complete = Number(data.args.complete);
-            var total = Number(data.args.total);
-            status.complete = total ? complete / total : complete;
-            task.acceptResult(status);
+    var responseTimeout = options.responseTimeout != null ? options.responseTimeout : this.options.responseTimeout;
+    var task = new ClientTask(onComplete);
+    if (responseTimeout) task.setResponseTimeout(responseTimeout);
+
+    task.beginPartial();
+    var status = {known:0, running:0, complete:0};
+    task.prepareResultWith(function(complete){ complete(status) });
+    this.getConnectedServers().forEach(function(conn) {
+        task.beginPartial();
+        conn.socket.getStatus(jobid, function (error,data) {
+            task.endPartial();
+            if (error) return;
+            status.known += data.args.known|0;
+            status.running += data.args.running|0;
+            var complete = data.args.complete|0;
+            var total = data.args.total|0;
+            var percent = total ? complete / total : complete;
+            if (percent > status.complete) status.complete = percent;
         });
     });
+    task.endPartial();
 }
 
 var submitJob = exports.submitJob = function (func,options,data,onComplete) {

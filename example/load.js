@@ -23,6 +23,8 @@ var count = 0;
     ['1','2','3','4','5','6','7','8','9','10'].forEach(function(N) {
         gm.submitJob('add',N+' '+O).then(function(A){
             console.log(N+" + "+O+" =",A, "Count #",++count);
+            if (N==10) { gm.disconnect() }
+            if (count==100) { gmw.disconnect() }
         });
     });
 });

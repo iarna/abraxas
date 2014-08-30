@@ -19,7 +19,7 @@ var Server = module.exports = function (options) {
     this.workersCount = {};
     this.jobs = {};
     var self = this;
-    this.socket.on('error', function(msg) { self.emit('error', msg) });
+    this.socket.once('error', function(msg) { self.emit('error', msg) });
     this.socket.on('connection',function(socket) { self.acceptConnection(socket) });
     events.EventEmitter.call(this);
 }
@@ -55,7 +55,7 @@ Server.prototype.acceptConnection = function (socket) {
     options.id     = id;
     var client = this.clients[id] = new ServerConnection(options);
 
-    client.on('error',function(e) { client.destroy() });
+    client.once('error',function(e) { client.destroy() });
 
     var self = this;
     ['add-worker', 'remove-worker', 'remove-all-workers', 'get-status', 'submit-job', 'grab-job',
@@ -65,7 +65,7 @@ Server.prototype.acceptConnection = function (socket) {
         var method = self[methodname];
         client.on(event, function () { method.apply(self,arguments) });
     });
-    client.on('disconnect', function () { self.recordDisconnect(client) });
+    client.once('disconnect', function () { self.recordDisconnect(client) });
     client.on('sleeping', function () { process.nextTick(function() { self.wakeWorkers() }) });
 }
 

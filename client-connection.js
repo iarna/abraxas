@@ -254,7 +254,7 @@ ClientConnection.prototype.handleJobResult = function (task,func,trace) {
     });
     this.packets.acceptByJob('WORK_COMPLETE', task.jobid, function (data) {
         cancel();
-        data.body.on('error',function (err) {
+        data.body.once('error',function (err) {
             task.acceptError(trace.withError(new AbraxasError.Receive(err)));
             task.end();
         });

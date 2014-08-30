@@ -55,12 +55,12 @@ ClientReconnect.prototype._connectionReady = function (client) {
     this.connect.reset();
     this.socket = client;
     var self = this;
-    client.on('disconnect', function () {
+    client.once('disconnect', function () {
         self.socket = null;
         self.backoff();
         self.emit('disconnect',self);
     });
-    client.on('error', function (error) {
+    client.once('error', function (error) {
         self.emit('error',error,self);
     });
     self.emit('connect',self);

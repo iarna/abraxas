@@ -30,12 +30,12 @@ var ClientTask = module.exports = function ClientTask(callback,options) {
     Task.call(this,accept,transmit,options);
     if (callback) {
         this.pipe(concat(function(data) { callback(null,(data instanceof Array && data.length == 1) ? data[0] : data) }));
-        this.on('error', callback);
+        this.once('error', callback);
     }
     if (options.nobody) transmit.end();
 
     var self = this;
-    this.on('end', function () { self.emit('close') });
+    this.once('end', function () { self.emit('close') });
 
 }
 util.inherits(ClientTask, Task);

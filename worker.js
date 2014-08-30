@@ -198,7 +198,7 @@ Worker.dispatchWorker = function (job,socket) {
             socket.workData(jobid,data);
         });
 
-        task.writer.on('end', function () {
+        task.writer.once('end', function () {
             if (socket.connected) {
                 socket.workComplete(jobid,task.lastChunk);
             }
@@ -215,7 +215,7 @@ Worker.dispatchWorker = function (job,socket) {
             addToBuffer(data);
         });
 
-        task.writer.on('end', function () {
+        task.writer.once('end', function () {
             if (socket.connected) {
                 if (task.lastChunk) addToBuffer(task.lastChunk);
                 socket.workComplete(jobid,buffer);
@@ -228,7 +228,7 @@ Worker.dispatchWorker = function (job,socket) {
         var handleReturnValue = function (value) {
             if (value && value.pipe) {
                 value.pipe(task);
-                value.on('error', function (err) { task.error(err) });
+                value.once('error', function (err) { task.error(err) });
             }
             else if (value && value.then) {
                 value.then(handleReturnValue, function (err) { task.error(err) });

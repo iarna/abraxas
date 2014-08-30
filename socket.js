@@ -32,7 +32,7 @@ var AbraxasSocket = module.exports = function (options) {
     this.connection.setMaxListeners(0);
 
     this.connected = true;
-    this.connection.on('disconnect',function(){ self.disconnect() });
+    this.connection.once('disconnect',function(){ self.disconnect() });
 
     this.connection.setNoDelay(true);
     this.connection.setKeepAlive(true);
@@ -46,17 +46,17 @@ var AbraxasSocket = module.exports = function (options) {
     else {
         var id = ++maxId;
         this.clientid = id+"=...connecting...";
-        this.connection.on('connect',function () {
+        this.connection.once('connect',function () {
             self.clientid = id+'='+(net.isIPv4(self.connection.localAddress)?self.connection.localAddress:'['+self.connection.localAddress+']') + ':' + self.connection.localPort;
         });
     }
     var connectionError = function(error){ self.emitError(new AbraxasError.Connect(error)) }
     this.connection.once('error', connectionError);
-    this.connection.on('connect', function () {
+    this.connection.once('connect', function () {
         self.connection.removeListener('error', connectionError);
-        self.connection.on('error', function (error){ self.emitError(new AbraxasError.Socket(error)) });
+        self.connection.once('error', function (error){ self.emitError(new AbraxasError.Socket(error)) });
     });
-    this.connection.on('end', function(){ self.emit('disconnect') });
+    this.connection.once('end', function(){ self.emit('disconnect') });
 
     var input = this.connection;
     var output;
@@ -77,12 +77,12 @@ var AbraxasSocket = module.exports = function (options) {
     if (this.options.packetDump) output = observe(function(D){ self.emitWrite(D) });
 
     input = input.pipe(new packet.Parser());
-    input.on('error', function(error){ self.emitError(new AbraxasError.Parser(error)) });
+    input.once('error', function(error){ self.emitError(new AbraxasError.Parser(error)) });
     var emitter = new packet.Emitter();
     this.socket = output ? output : emitter;
     if (output) output.pipe(emitter);
     output = emitter;
-    output.on('error', function(error){ self.emitError(new AbraxasError.Emitter(error)) });
+    output.once('error', function(error){ self.emitError(new AbraxasError.Emitter(error)) });
 
     if (this.options.packetDump) input = observe(input,function(D){ self.emitRead(D) });
     if (this.options.trafficDump) output = observe(output,function(D){ self.emitWrite(D) });

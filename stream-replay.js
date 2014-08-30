@@ -13,7 +13,7 @@ var StreamReplay = module.exports = function (options) {
     this.finished = false;
     this.id = ++id;
     var self = this;
-    this.on('finish',function(){
+    this.once('finish',function(){
         self.emit('end');
         self.finished = true;
         self._flushChildren();
@@ -54,7 +54,7 @@ StreamReplay.prototype.spawn = function () {
     var out = new stream.PassThrough();
     this.pipe(out);
     var self = this;
-    out.on('end',function(){ self.unpipe(out) });
+    out.once('end',function(){ self.unpipe(out) });
     return out;
 }
 

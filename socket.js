@@ -61,7 +61,7 @@ var AbraxasSocket = module.exports = function (options) {
     var input = this.connection;
     var output;
 
-    function observe(stream,func) {
+    var observe = function (stream,func) {
         if (!func) { func = stream; stream = null }
         var passthrough = function(data,enc,done){ func.apply(null,arguments); this.push(data,enc); done(); };
         if (stream) {

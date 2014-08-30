@@ -18,7 +18,6 @@ missing many important things:
 
 Longer term:
 
-* Worker: Examples that include multi-process modes with the cluster module.
 * Server: Background job durability
 * Client/Worker: Sugar library that adds some basic conventions to make Gearman easier, eg:
   * Consistent job naming, complex data types as arguments, etc.

@@ -1,7 +1,7 @@
 "use strict";
 var Gearman = require('../index');
 
-Gearman.Client.connect({connectTimeout: 100, servers: ['localhost','localhost:14730'], defaultEncoding: 'utf8'}, function (err,gm) {
+Gearman.Client.connect({connectTimeout: 20, servers: ['localhost','localhost:14730'], defaultEncoding: 'utf8'}, function (err,gm) {
     if (err) throw err;
     var start = process.hrtime();
     gm.registerWorker('slow',function (task) {
@@ -22,12 +22,15 @@ Gearman.Client.connect({connectTimeout: 100, servers: ['localhost','localhost:14
             gm.disconnect();
         });
     });
+    gm.submitJobBg('slow','wizzle').then(function(jobid) {
+        console.log("GET STATUS",jobid);
+        gm.getStatus(jobid,function(err,status) {
+            console.log('JOB SPECIFIC STATUS',jobid,status);
+        });
+    });
     setTimeout(function() {
         gm.workers({responseTimeout: 50}).then(function(workers){
             console.log(workers);
         });
-        gm.status().then(function(status){
-            console.log(status);
-        })
     }, 100);
 });

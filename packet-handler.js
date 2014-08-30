@@ -4,7 +4,9 @@ var stream = require('readable-stream');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError = require('./errors');
 
+var id = 0;
 var PacketHandler = module.exports = function () {
+    this.id = ++ id;
     this.defaultHandler = {};
     this.serialHandler = {};
     this.handler = {};
@@ -12,6 +14,10 @@ var PacketHandler = module.exports = function () {
     stream.Writable.call(this,{objectMode: true})
 }
 util.inherits(PacketHandler, stream.Writable);
+
+PacketHandler.prototype.toString = function () {
+    return '[PacketHandler#'+this.id+']';
+}
 
 PacketHandler.prototype._write = function (packet, encoding, callback) {
     callback();

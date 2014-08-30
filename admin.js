@@ -1,106 +1,69 @@
 "use strict";
 var packet = require('gearman-packet');
 var AbraxasError = require('./errors');
+var ClientTask = require('./task-client');
 
-var getTableQueue = [];
-var callNextQueued = function() {
-    getTableQueue.shift(); // remove ourselves
-    if (! getTableQueue.length) return;
-    getTableQueue[0](); // call next
-}
-
-var handleGetTable = function (gearman,callback,linehandler,task) {
-    var status = [];
-    var lineHandler;
-    gearman.packets.on('line', lineHandler = function (result) {
-        status.push(linehandler(result));
+exports.status = function (options,onComplete) {
+    if (options instanceof Function) { onComplete = options; options = null }
+    if (! options) options = {};
+    var responseTimeout = options.responseTimeout != null ? options.responseTimeout : this.options.responseTimeout;
+    var task = new ClientTask(onComplete);
+    if (responseTimeout) task.setResponseTimeout(responseTimeout);
+    task.beginPartial();
+    var status = {};
+    task.prepareResultWith(function(complete){ complete(status) });
+    this.getConnectedServers().forEach(function(conn) {
+        task.beginPartial();
+        conn.socket.adminTable('status', function (err,table) {
+            if (err) return;
+            table.forEach(function(line) {
+                if (! status[line.function]) return status[line.function] = line;
+                var match = status[line.function];
+                match.inqueue += line.inqueue;
+                match.running += line.running;
+                match.workers += line.workers;
+            });
+            task.endPartial();
+        }, function (result) {
+            var jobkind = result.args.line.split(/\t/);
+            return {function:jobkind[0], inqueue:jobkind[1]|0, running:jobkind[2]|0, workers:jobkind[3]|0};
+        });
     });
-    var completeHandler;
-    gearman.packets.once('block-complete', completeHandler = function (result) {
-        gearman.packets.removeListener('line',lineHandler);
-        gearman.packets.removeListener('error',errorHandler);
-        task.acceptResult(status);
-        callNextQueued();
+    return task.endPartial();
+}
+
+exports.workers = function (options,onComplete) {
+    if (options instanceof Function) { onComplete = options; options = null }
+    if (! options) options = {};
+    var responseTimeout = options.responseTimeout != null ? options.responseTimeout : this.options.responseTimeout;
+    var task = new ClientTask(onComplete);
+    if (responseTimeout) task.setResponseTimeout(responseTimeout);
+    task.beginPartial();
+    var workers = [];
+    task.prepareResultWith(function(complete){ complete(workers) });
+    this.getConnectedServers().forEach(function(conn) {
+        task.beginPartial();
+        conn.socket.adminTable('workers', function (err,table) {
+            if (err) return;
+            workers.push.apply(workers,table);
+            task.endPartial();
+        },
+        function (result) {
+            var matched = result.args.line.match(/^(\d+) (\S+) (\S+) :(?: (.+))?/);
+            if (! matched) return;
+            return {server:conn.newConnection.options,fd:matched[1], ip:matched[2], clientid:matched[3]=='-'?null:matched[3], functions:matched[4]?matched[4].split(/ /):[]};
+        });
     });
-    var errorHandler;
-    gearman.packets.once('error', errorHandler = function (result) {
-        gearman.packets.removeListener('line',lineHandler);
-        gearman.packets.removeListener('block-complete',completeHandler);
-        task.acceptError(new AbraxasError.Server(result.code,result.message));
-        callNextQueued();
+    return task.endPartial();
+}
+
+exports.shutdown = function (graceful,onComplete) {
+    var task = new ClientTask(onComplete);
+    task.beginPartial();
+    this.getConnectedServers().forEach(function(conn) {
+        task.beginPartial();
+        conn.socket.adminSingleResult('shutdown'+(graceful?' graceful':''), function (){ task.endPartial() });
     });
+    return task.endPartial();
 }
 
-var getTable = function (gearman,callback,linehandler) {
-    var task = gearman.newTask(callback);
-    getTableQueue.push(function(){ handleGetTable(gearman,callback,linehandler,task) });
-    if (getTableQueue.length==1) getTableQueue[0]();
-    return task;
-}
-
-exports.status = function (callback) {
-    this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'status'}});
-    return getTable(this,callback,function(result) {
-        var jobkind = result.args.line.split(/\t/);
-        return {function:jobkind[0], inqueue:jobkind[1], running:jobkind[2], workers:jobkind[3]};
-    });
-}
-
-exports.workers = function (callback) {
-    this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'workers'}});
-    return getTable(this,callback,function(result) {
-        var matched = result.args.line.match(/^(\d+) (\S+) (\S+) :(?: (.+))?/);
-        if (matched) {
-            return {fd:matched[1], ip:matched[2], clientid:matched[3]=='-'?null:matched[3], functions:matched[4]?matched[4].split(/ /):[]};
-        }
-        else {
-            return {error:result.args.line};
-        }
-    });
-}
-
-var acceptSerialWithError = function (packets, event, callback) {
-    var success = function (data) {
-        packets.removeSerial('error', failure);
-        callback(null, data);
-    }
-    var failure = function (data) {
-        packets.removeSerial(event, success);
-        packets.constructError(data, callback);
-    }
-    packets.acceptSerial(event, success);
-    packets.acceptSerial('error', failure);
-}
-
-
-var taskError = function (task,valuehandler) {
-    return function (err,value) {
-        if (err) {
-            task.acceptError(new AbraxasError.Server(err.code,err.message));
-        }
-        else {
-            task.acceptResult(valuehandler ? valuehandler(value) : null);
-        }
-    }
-}
-
-exports.maxqueue = function (func,maxsize,callback) {
-   var task = this.newTask(callback);
-   this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'maxqueue '+func+(maxsize?' '+maxsize:'')}});
-   acceptSerialWithError(this.packets, 'ok', taskError(task));
-   return task;
-}
-
-exports.shutdown = function (graceful,callback) {
-   var task = this.newTask(callback);
-   this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'shutdown'+(graceful?' graceful':'')}});
-   acceptSerialWithError(this.packets, 'ok', taskError(task));
-   return task;
-}
-
-exports.version = function (callback) {
-   var task = this.newTask(callback);
-   this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:'version'}});
-   acceptSerialWithError(this.packets, 'ok', taskError(task, function (V){ return V.args.line }));
-   return task;
-}

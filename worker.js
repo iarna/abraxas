@@ -4,99 +4,148 @@ var toBuffer = packet.Emitter.prototype.toBuffer;
 var stream = require('readable-stream');
 var util = require('util');
 var WorkerTask = require('./task-worker');
-/*
------ WORKER
-Send:
-    ALL_YOURS: {id: 24, args: []},
-*/
+var ClientTask = require('./task-client');
 
-exports.construct = function () {
+exports.__construct = function (init) {
     this._workers = {};
     this._workersCount = 0;
 
     this._activeJobs = {};
     this._activeJobsCount = 0;
 
+    this._grabbingJob = 0;
+
+    this._clientId = null;
+
     if (!this.options.maxJobs) {
         this.options.maxJobs = 1;
     }
-
     var self = this;
-    this.packets.accept('NO_JOB', function(data) {
-        if (!self.socket) return;
-        self.socket.write({kind:'request',type:packet.types['PRE_SLEEP']});
+    this.on('connect', function (conn) {
+        conn.socket.handleNoJob(function(data) {
+            this._grabbingJob --;
+            conn.socket.sleep();
+        });
+
+        conn.socket.handleNoOp(function(data) {
+            conn.socket.wakeup();
+            if (self.options.maxJobs > (self._activeJobsCount+self._grabbingJob)) {
+                self._grabbingJob ++;
+                conn.socket.grabJob();
+            }
+        });
+        if (! this._workersCount) return;
+        conn.socket.handleJobAssign(function(job) {
+            self._grabbingJob --;
+            self.dispatchWorker(job,conn.socket);
+        });
+        if (this._clientId) {
+            conn.socket.setClientId(id);
+        }
+        for (var func in self._workers) {
+            var worker = self._workers[func];
+            if (! worker.handler) continue;
+            conn.socket.canDo(func,worker.options.timeout);
+            if (! worker.maxsize) continue;
+            conn.socket.adminSingleResult('maxqueue '+func+(worker.maxsize?' '+worker.maxsize:''));
+        }
+        self.askForWork();
     });
 
-    this.packets.accept('NOOP', function(data) { self.askForWork() });
 }
+
 var Worker = exports.Worker = {};
 
 Worker.setClientId = function (id) {
-    self.socket.write({kind:'request',type:packet.types['SET_CLIENT_ID'], args:{workerid:id}});
+    this._clientId = id;
+
+    this.getConnectedServers().forEach(function(conn) {
+        conn.socket.setClientId(id);
+    });
+}
+
+Worker._worker = function (func) {
+    if (! this._workers[func]) this._workers[func] = {};
+    return this._workers[func] ? this._workers[func] : {};
+}
+
+Worker.maxqueue = function (func,maxsize,onComplete) {
+    this._worker(func).maxsize = maxsize;
+    var task = new ClientTask(onComplete);
+    task.beginPartial();
+    this.getConnectedServers().forEach(function(conn) {
+        task.beginPartial();
+        conn.adminSingleResult('maxqueue '+func+(maxsize?' '+maxsize:''), function() { task.endPartial() });
+    });
+    task.endPartial();
+    return task;
 }
 
 // We defer this, so that the user has the oppportunity to register all of
 // their workers
 Worker.askForWork = function () {
-    if (this.asked) return;
-    this.asked = true;
+    if (this.options.maxJobs <= this._activeJobsCount) return;
+    if (this.askingForWork) return;
+    this.askingForWork = true;
     var self = this;
     setImmediate(function(){
-        self.asked = false;
-        if (!self.socket) return;
-        self.socket.write({kind:'request',type:packet.types['GRAB_JOB_UNIQ']});
+        self.askingForWork = false;
+        self.getConnectedServers().forEach(function(conn) { conn.socket.sleep() });
     });
 }
 
 Worker.startWork = function (jobid) {
     this._activeJobs[jobid] = true;
-    if (this.options.maxJobs > ++ this._activeJobsCount) {
-        this.askForWork();
-    }
+    ++ this._activeJobsCount;
+    this.askForWork();
 }
 
 Worker.endWork = function (jobid) {
     delete this._activeJobs[jobid];
-    if (this.options.maxJobs > -- this._activeJobsCount) {
-        this.askForWork();
-    }
+    -- this._activeJobsCount;
+    this.askForWork();
+}
+
+Worker.isRegistered = function (func) {
+    return !! this._worker(func).handler;
 }
 
 Worker.unregisterWorker = function (func) {
-    if (!this._workers[func]) {
+    if (!this.isRegistered(func)) {
         this.emit('warn', new Error("Unregistering worker "+func+" that's not registered, doing nothing"));
         return;
     }
-    delete this._workers[func];
+    this._worker(func).handler = null;
     if (-- this._workersCount == 0) {
-        this.packets.removeHandler('JOB_ASSIGN_UNIQ', this.onJobAssign);
-        this.unref();
+        this.getConnectedServers().forEach(function(conn) {
+            conn.socket.unhandleJobAssign();
+        });
     }
-    if (!this.connected) return;
-    this.socket.write({kind:'request',type:packet.types['CANT_DO'],args:{functon: func}});
+    this.getConnectedServers().forEach(function(conn) {
+        conn.socket.cantDo(func);
+    });
 }
 
-Worker.registerWorker = function (func, options, worker) {
-    if (!worker) { worker=options; options={} }
-    if (this._workers[func]) {
+Worker.registerWorker = function (func, options, handler) {
+    if (!handler) { handler=options; options={} }
+    var self = this;
+    if (this.isRegistered(func)) {
         this.emit('warn', new Error('Redefining worker for '+func));
     }
-    else {
-        if (this._workersCount++ == 0) {
-            var self = this;
-            this.ref();
-            this.packets.accept('JOB_ASSIGN_UNIQ', this.onJobAssign = function(job) { self.dispatchWorker(job) });
-        }
+    else if (this._workersCount++ == 0) {
+        this.getConnectedServers().forEach(function(conn) {
+            conn.socket.handleJobAssign(function(job) {
+                self._grabbingJob --;
+                self.dispatchWorker(job,conn.socket);
+            });
+        });
     }
-    if (options.timeout) {
-        this.socket.write({kind:'request',type:packet.types['CAN_DO_TIMEOUT'], args:{function: func, timeout: options.timeout}});
-    }
-    else {
-        this.socket.write({kind:'request',type:packet.types['CAN_DO'], args:{function: func}});
-    }
-    this._workers[func] = {options: options, handler: worker};
+    this.getConnectedServers().forEach(function(conn) {
+        conn.socket.canDo(func,options.timeout);
+    });
+    this._worker(func).options = options;
+    this._worker(func).handler = handler;
     this.askForWork();
-    var self = this;
     return {
         function: func,
         unregister: function () { return self.unregisterWorker(func) },
@@ -104,14 +153,14 @@ Worker.registerWorker = function (func, options, worker) {
         status: function (callback) {
             if (callback) {
                 return self.status().then(function (status) {
-                    return callback(null,status.filter(function(W){ return W.function==func })[0]);
+                    process.nextTick(function(){ callback(null,status[func]) });
                 })
                 .catch(function(err) {
                     return callback(err);
                 });
             }
             else {
-                return self.status().then(function (status) { return status.filter(function(W){ return W.function==func })[0]; })
+                return self.status().then(function (status) { return status[func]; })
             }
         }
     };
@@ -121,38 +170,37 @@ Worker.forgetAllWorkers = function () {
     if (! this._workersCount) return;
     this._workers = {};
     this._workersCount = 0;
-    this.packets.removeHandler('JOB_ASSIGN_UNIQ', this.onJobAssign);
-    this.unref();
-    if (!this.connected) return;
-    this.socket.write({kind:'request',type:packet.types['RESET_ABILITIES']});
+    this.getConnectedServers().forEach(function(conn) {
+        conn.socket.unhandleJobAssign();
+        conn.socket.resetAbilities();
+    });
 }
 
-Worker.dispatchWorker = function (job) {
+Worker.dispatchWorker = function (job,socket) {
     var self = this;
     var jobid = job.args.job;
-    var worker = this._workers[job.args.function];
-    if (!worker) return this.packets.emit('unknown',job);
+    var worker = this._worker(job.args.function);
+    if (!worker.handler) throw Error('Assigned job for worker we no longer have');
 
     this.startWork(jobid);
 
-    var options = {jobid: jobid, uniqueid: job.args.uniqueid, client: this};
+    var options = {jobid: jobid, uniqueid: job.args.uniqueid, client: this, socket: socket};
     if (worker.options.encoding) options.encoding = worker.options.encoding;
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
     if (options.encoding == 'buffer') options.encoding = null;
     if (options.encoding) job.body.setEncoding(options.encoding);
+
     var task = new WorkerTask(job.body,options);
 
-    if (this.feature.streaming) {
+    if (socket.feature.streaming) {
         task.writer.on('data', function (data) {
-            if (!self.connected) return;
-            self.socket.write({kind:'request',type:packet.types['WORK_DATA'], args:{job:jobid}, body:data});
+            if (!socket.connected) return;
+            socket.workData(jobid,data);
         });
 
         task.writer.on('end', function () {
-            if (self.connected) {
-                var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}};
-                if (task.lastChunk) end.body = task.lastChunk;
-                self.socket.write(end, options.encoding);
+            if (socket.connected) {
+                socket.workComplete(jobid,task.lastChunk);
             }
             self.endWork(jobid);
         });
@@ -163,15 +211,14 @@ Worker.dispatchWorker = function (job) {
             buffer = Buffer.concat([buffer,toBuffer(thing)]);
         }
         task.writer.on('data', function (data) {
-            if (!self.connected) return;
+            if (!socket.connected) return;
             addToBuffer(data);
         });
 
         task.writer.on('end', function () {
-            if (self.connected) {
+            if (socket.connected) {
                 if (task.lastChunk) addToBuffer(task.lastChunk);
-                var end = {kind:'request',type:packet.types['WORK_COMPLETE'], args:{job:jobid}, body: buffer};
-                self.socket.write(end, options.encoding);
+                socket.workComplete(jobid,buffer);
             }
             self.endWork(jobid);
         });

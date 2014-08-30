@@ -22,6 +22,9 @@ PacketHandler.prototype.toString = function () {
 PacketHandler.prototype._write = function (packet, encoding, callback) {
     callback();
     var name = packet.type.name;
+    if (packet.kind == 'admin') {
+        name = 'ADMIN:'+name;
+    }
     var job = packet.args.job;
     if (job && this.byJobHandler[job] && this.byJobHandler[job][name]) return this.byJobHandler[job][name](packet);
     if (this.handler[name]) return this.handler[name](packet);
@@ -76,6 +79,20 @@ PacketHandler.prototype.acceptSerialWithError = function (event, callback) {
     }
     this.acceptSerial(event, success);
     this.acceptSerial('ERROR', failure);
+}
+
+PacketHandler.prototype.acceptSerialAdminWithError = function (event, callback) {
+    var self = this;
+    var success = function (data) {
+        self.removeSerial('ADMIN:error', failure);
+        callback(null, data);
+    }
+    var failure = function (data) {
+        self.removeSerial(event, success);
+        self.constructError(data, callback);
+    }
+    this.acceptSerial(event, success);
+    this.acceptSerial('ADMIN:error', failure);
 }
 
 PacketHandler.prototype.acceptByJob = function (event, id, callback) {

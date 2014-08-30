@@ -4,6 +4,7 @@ var stream = require('readable-stream');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError = require('./errors');
 
+// FIXME: Make this run against ALL job servers and return whichever knows about it.
 var getStatus = exports.getStatus = function (jobid,options,onComplete) {
     if (options instanceof Function) {
         onComplete = options;

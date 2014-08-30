@@ -1,9 +1,9 @@
 "use strict";
 var test = require('tape');
-var Gearman = require('./loopback');
+var Gearman = require('./lib/loopback');
 
 Gearman.Server.listen();
-var gm = Gearman.Client.connect();
+var gm = Gearman.Client.connect({defaultEncoding: 'utf8'});
 
 test('echo', function (t) {
     t.plan(2);

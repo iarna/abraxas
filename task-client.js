@@ -58,7 +58,7 @@ ClientTask.prototype.setConnection = function (connection) {
     connection.once('close', connectionClose);
     this.once('close',function(){
         connection.unref();
-        connection.connection.removeListener('close', connectionClose);
+        connection.removeListener('close', connectionClose);
     });
 }
 

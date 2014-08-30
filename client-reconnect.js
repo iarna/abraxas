@@ -63,6 +63,7 @@ ClientReconnect.prototype._connectionReady = function (client) {
     client.once('error', function (error) {
         self.emit('error',error,self);
     });
+    client.setMaxListeners(0);
     self.emit('connect',self);
 }
 

@@ -15,9 +15,9 @@ var AbraxasClient = module.exports = function (options) {
     var self = this;
     this.connections = options.servers.map(function(connect){
         var C = new ClientReconnect(self.options,connect);
-        C.on('disconnect', function (C) { self.emit('disconnect',C)  });
-        C.on('error', function (error,C) { self.emit('connection-error',C,error)  });
-        C.on('connect', function (C) { self.emit('connect',C) });
+        C.on('disconnect', function (C) { self.emit('disconnect',self,C)  });
+        C.on('error', function (error,C) { self.emit('connection-error',error,self,C)  });
+        C.on('connect', function (C) { self.emit('connect',self,C) });
         return C;
     });
 
@@ -68,16 +68,16 @@ AbraxasClient.connect = function(options,onConnect) {
     var client = new AbraxasClient(options);
     if (options.connectTimeout) {
         var timeout = setTimeout(function(){
-            client.emit('error',new AbraxasError.ConnectTimeout);
+            client.emit('error',new AbraxasError.ConnectTimeout, client);
         }, options.connectTimeout);
         client.once('connect', function () { clearTimeout(timeout) });
     }
     if (onConnect) {
-        var onError = function(E){
+        var onError = function(E,client){
             client.removeListener('connect', onSuccess);
             onConnect(E);
         }
-        var onSuccess = function() {
+        var onSuccess = function(client) {
             client.removeListener('error', onError);
             onConnect(null, client);
         }
@@ -122,7 +122,7 @@ AbraxasClient.prototype.getConnection = function (timeout,callback) {
     }
     var timer = !timeout ? null : setTimeout(function () { callback(new AbraxasError.SubmitTimeout()) }, timeout);
 
-    this.once('connect',function (C){
+    this.once('connect',function (client,C){
         if (timer) clearTimeout(timer);
         C.lastused = new Date();
         callback(null, C.socket);

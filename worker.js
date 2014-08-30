@@ -20,10 +20,9 @@ exports.__construct = function (init) {
     if (!this.options.maxJobs) {
         this.options.maxJobs = 1;
     }
-    var self = this;
-    this.on('connect', function (conn) {
+    this.on('connect', function (self, conn) {
         conn.socket.handleNoJob(function(data) {
-            this._grabbingJob --;
+            self._grabbingJob --;
             conn.socket.sleep();
         });
 
@@ -34,12 +33,12 @@ exports.__construct = function (init) {
                 conn.socket.grabJob();
             }
         });
-        if (! this._workersCount) return;
+        if (! self._workersCount) return;
         conn.socket.handleJobAssign(function(job) {
             self._grabbingJob --;
             self.dispatchWorker(job,conn.socket);
         });
-        if (this._clientId) {
+        if (self._clientId) {
             conn.socket.setClientId(id);
         }
         for (var func in self._workers) {

@@ -17,9 +17,9 @@ var AbraxasSocket = module.exports = function (options) {
 
     this.options = options;
     var packets = this.packets = new PacketHandler();
-    
+
     if (this.options.debug) {
-        this.on('unknown-packet',function(name, packet){ console.error('Unknown packet',name,'=',debugPacket(packet)) });
+        this.on('unknown-packet',function(packet){ console.error('Unknown packet',debugPacket(packet)) });
     }
 
     if (!this.options.defaultEncoding) {
@@ -119,7 +119,7 @@ AbraxasSocket.prototype.emitError = function (error) {
 }
 
 AbraxasSocket.prototype.emitUnknownPacket = function (packet) {
-    if (events.EventEmitter.listenerCount(this,'unknown-packet')) return this.emit('unknown-packet',error);
+    if (events.EventEmitter.listenerCount(this,'unknown-packet')) return this.emit('unknown-packet',packet);
 }
 
 AbraxasSocket.prototype.emitRead = function (stuff) {

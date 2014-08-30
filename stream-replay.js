@@ -1,5 +1,5 @@
 "use strict";
-var stream = require('stream');
+var stream = require('readable-stream');
 var util = require('util');
 
 var id = 0;

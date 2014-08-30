@@ -1,7 +1,7 @@
 "use strict";
 var Promise = require('bluebird');
 var concat = require('concat-stream');
-var stream = require('stream');
+var stream = require('readable-stream');
 var util = require('util');
 var packet = require('gearman-packet');
 var Task = require('./task');

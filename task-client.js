@@ -1,5 +1,6 @@
 "use strict";
-var stream = require('stream');
+var stream = require('readable-stream');
+var isaStream = require('isa-stream');
 var util = require('util');
 var concat = require('concat-stream');
 var Task = require('./task');

@@ -1,6 +1,6 @@
 "use strict";
 var packet = require('gearman-packet');
-var stream = require('stream');
+var stream = require('readable-stream');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError = require('./errors');
 

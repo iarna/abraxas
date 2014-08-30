@@ -1,7 +1,7 @@
 "use strict";
 var packet = require('gearman-packet');
 var toBuffer = packet.Emitter.prototype.toBuffer;
-var stream = require('stream');
+var stream = require('readable-stream');
 var util = require('util');
 var WorkerTask = require('./task-worker');
 /*

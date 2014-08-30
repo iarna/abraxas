@@ -72,3 +72,21 @@ var JobException = AbraxasError.JobException = function (name,jobid,payload) {
 }
 util.inherits(JobException, JobFail);
 JobException.prototype.name = 'JobException';
+
+var ConnectTimeoutException = AbraxasError.ConnectTimeout = function () {
+    AbraxasError.call(this,'Timeout while waiting for connection');
+}
+util.inherits(ConnectTimeoutException, AbraxasError);
+ConnectTimeoutException.prototype.name = 'ConnectTimeout';
+
+var SubmitTimeoutException = AbraxasError.SubmitTimeout = function () {
+    AbraxasError.call(this,'Timeout while waiting for connection');
+}
+util.inherits(SubmitTimeoutException, AbraxasError);
+SubmitTimeoutException.prototype.name = 'SubmitTimeout';
+
+var ResponseTimeoutException = AbraxasError.ResponseTimeout = function () {
+    AbraxasError.call(this,'Timeout while waiting for response');
+}
+util.inherits(ResponseTimeoutException, AbraxasError);
+ResponseTimeoutException.prototype.name = 'ResponseTimeout';

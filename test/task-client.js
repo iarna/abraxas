@@ -4,7 +4,7 @@ var ClientTask = require('../task-client');
 var streamify = require('stream-array');
 var concat = require('concat-stream');
 var Promise = require('bluebird');
-var stream = require('stream');
+var isaStream = require('isa-stream');
 
 var testAcceptResultCallback = function (data,useStream) {
     return function (t) {
@@ -69,7 +69,7 @@ var testPrepareBody = function (options,body,assertions) {
             if (value === task.writer) {
                 did.cbWithWriter = true;
             }
-            else if (value instanceof stream.Readable) {
+            else if (isaStream.Readable(value)) {
                 did.cbWithStream = true;
             }
             else {

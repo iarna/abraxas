@@ -1,7 +1,7 @@
 "use strict";
-var Gearman = require('../../index.js');
+var Gearman = require('../../../index.js');
 var extend = require('util-extend');
-var stream = require('stream');
+var stream = require('readable-stream');
 var events = require('events');
 var util = require('util');
 var DuplexCombination = require('duplex-combination');
@@ -26,23 +26,30 @@ var createFakeSocketPair = function () {
     }
 }
 
-var server = new events.EventEmitter();
-
-var gms = new Gearman.Server({socket: server});
+var server;
 
 var connect = function (options) {
     if (!options) options = {};
+    options.debug = true;
     var socket = createFakeSocketPair();
     socket.in.remoteAddress = 'Server'; socket.in.remotePort = socket.id;
     socket.out.remoteAddress = 'Client';  socket.out.remotePort = socket.id;
     server.emit('connection',socket.in);
-    options.socket = socket.out;
-    if (!options.defaultEncoding) options.defaultEncoding = 'utf8';
+    options.servers = [function (cb) { process.nextTick(cb); return socket.out }];
     var gmc = new Gearman.Client(options);
-    socket.in.emit('connect');
-    socket.out.emit('connect');
+    setImmediate(function(){
+        socket.in.emit('connect');
+        socket.out.emit('connect');
+    });
     return gmc;
 }
 
-exports.Server = { listen: function () { return gms } };
+exports.Server = {
+    listen: function (opts) {
+        if (!opts) opts = {};
+        opts.socket= server = new events.EventEmitter();
+        opts.debug = true;
+        return new Gearman.Server(opts);
+    }
+};
 exports.Client = { connect: connect };

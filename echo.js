@@ -1,27 +1,24 @@
 "use strict";
 var packet = require('gearman-packet');
 
-exports.echo = function (options, data, callback) {
-    if (callback == null && typeof data == 'function') {
-        callback = data;
+exports.echo = function (options, data, onComplete) {
+    if (onComplete == null && typeof data == 'function') {
+        onComplete = data;
         data = void 0;
     }
     if (data == null && options != null && (options.pipe || options.length)) {
         data = options;
         options = {};
     }
-    if (data==null && callback == null && typeof options == 'function') {
-        callback = options;
+    if (data==null && onComplete == null && typeof options == 'function') {
+        onComplete = options;
         options = void 0;
     }
-    if (!options) { options = {} }
-    var self = this;
-    var task = this.newTask(callback, options);
-    task.prepareBody(data, function(data) {
-        self.packets.acceptSerial('ECHO_RES', function (result) {
-            task.acceptResult(result.body);
+    return this.startTask(onComplete, options, function (task) {
+        task.prepareBody(data, function(body) {
+            task.conn.echo(body, function (result) {
+                task.acceptResult(result.body);
+            });
         });
-        self.socket.write({kind:'request',type:packet.types['ECHO_REQ'],body:data});
     });
-    return task;
 }

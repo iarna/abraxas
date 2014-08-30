@@ -5,7 +5,8 @@ var debugPacket = module.exports = function (data) {
     var out = copy(data);
     if (out.body) {
         if (out.body.pipe) {
-            out.body = 'PIPE';
+            if (!out.bodySize) out['body.length'] = out.body.length;
+            out.body = 'STREAM';
         }
         if (out.body.length > 64) {
             if (Buffer.isBuffer(out.body)) {

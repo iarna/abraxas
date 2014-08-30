@@ -1,30 +1,30 @@
 "use strict";
 var test = require('tape');
-var Gearman = require('./loopback');
+var Gearman = require('./lib/loopback');
 
 Gearman.Server.listen();
 
 test('work', function (t) {
     t.plan(2);
 
-    var gmw = Gearman.Client.connect({packetDump: false});
+    var gmw = Gearman.Client.connect({defaultEncoding: 'utf8'});
     gmw.registerWorker('upper',function (task) {
         task.then(function(payload) {
             task.end(payload.toUpperCase());
         });
     });
-    var gmc = Gearman.Client.connect({packetDump: false});
+    var gmc = Gearman.Client.connect({defaultEncoding: 'utf8'});
     var message = 'test';
-    gmc.submitJob('upper',message).then(function (result) {
+    gmc.submitJob('upper',message).on('created',function(task) {
+        console.log('# created ',task.jobid);
+    }).then(function (result) {
         t.pass('no errors');
         t.is(result,message.toUpperCase(),'we got uppercased');
-    })
-    .catch(function (err) {
+    }).catch(function (err) {
         t.fail('no errors');
         process.stdout.write('# '+err);
         t.skip();
-    })
-    .finally(function () {
+    }).finally(function () {
          gmw.forgetAllWorkers();
     })
     
@@ -33,13 +33,13 @@ test('work', function (t) {
 test('error', function (t) {
     t.plan(2);
 
-    var gmw = Gearman.Client.connect({packetDump: false});
+    var gmw = Gearman.Client.connect({defaultEncoding: 'utf8'});
     gmw.registerWorker('upper',function (task) {
         return task.then(function(payload) {
             throw payload;
         });
     });
-    var gmc = Gearman.Client.connect({packetDump: false});
+    var gmc = Gearman.Client.connect({defaultEncoding: 'utf8'});
     var message = 'test';
     gmc.submitJob('upper',message).then(function (result) {
         t.fail('errors');
@@ -58,13 +58,13 @@ test('error', function (t) {
 test('work-multiple-serial', function (t) {
     t.plan(4);
 
-    var gmw = Gearman.Client.connect({packetDump: false});
+    var gmw = Gearman.Client.connect({defaultEncoding: 'utf8'});
     gmw.registerWorker('upper',function (task) {
         task.then(function(payload) {
             task.end(payload.toUpperCase());
         });
     });
-    var gmc = Gearman.Client.connect({packetDump: false});
+    var gmc = Gearman.Client.connect({defaultEncoding: 'utf8'});
     var message = 'test';
     gmc.submitJob('upper',message).then(function (result) {
         t.pass('no errors');

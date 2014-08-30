@@ -1,9 +1,8 @@
 "use strict";
 var Promise = require('bluebird');
 var concat = require('concat-stream');
-var stream = require('stream');
+var stream = require('readable-stream');
 var util = require('util');
-var packet = require('gearman-packet');
 var Task = require('./task');
 
 var WorkerTask = module.exports = function WorkerTask(payload,options) {
@@ -12,6 +11,7 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     this.jobid     = options.jobid;
     this.uniqueid  = options.uniqueid;
     this.client    = options.client;
+    this.socket    = options.socket;
     this.lastChunk = null;
     this.length    = payload.length;
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
@@ -44,21 +44,15 @@ WorkerTask.prototype.end = function (data) {
     Task.prototype.end.call(this);
 }
 WorkerTask.prototype.warn = function (msg) {
-    if (!this.client.connected) return;
-    this.client.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:this.jobid}, body:msg});
+    if (!this.socket.connected) return;
+    this.socket.workWarning(this.jobid, msg);
 }
 WorkerTask.prototype.status = function (percent) {
-    if (!this.client.connected) return;
-    this.client.socket.write({kind:'request',type:packet.types['WORK_STATUS'], args:{job:this.jobid, complete:percent*100, total: 100}});
+    if (!this.socket.connected) return;
+    this.socket.workStatus(this.jobid, percent);
 }
 WorkerTask.prototype.error = function (err) {
-    if (!this.client.connected) return;
-    if (this.client.feature.exceptions) {
-        this.client.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:this.jobid}, body:err});
-    }
-    else {
-        this.client.socket.write({kind:'request',type:packet.types['WORK_WARNING'], args:{job:this.jobid}, body:err});
-        this.client.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:this.jobid}});
-    }
+    if (!this.socket.connected) return;
+    this.socket.workException(this.jobid,err);
     this.client.endWork(this.jobid);
 }

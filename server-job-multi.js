@@ -1,7 +1,7 @@
 "use strict";
 var util = require('util');
 var events = require('events');
-var stream = require('stream');
+var stream = require('readable-stream');
 var through = require('through2');
 
 var SingleJob = require('./server-job-single');

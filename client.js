@@ -2,96 +2,147 @@
 var net = require('net');
 var util = require('util');
 var events = require('events');
-var packet = require('gearman-packet');
 var extend = require('util-extend');
 var ClientTask = require('./task-client');
 var streamToBuffer = require('./stream-to-buffer');
-var AbraxasSocket = require('./socket');
 var AbraxasError  = require('./errors');
+var ClientReconnect = require('./client-reconnect');
+var emptyFunction = require('emptyfunction');
+
+var workerConstruct = require('./worker').__construct;
 
 var AbraxasClient = module.exports = function (options) {
-    AbraxasSocket.call(this,options);
-
-    this.feature = {
-        exceptions: false,
-        streaming: false
-    };
-
-    this.packets.acceptDefault('ERROR', function (data) {
-        streamToBuffer(data.body,function(err, body) {
-            if (err) {
-                self.emitError(new AbraxasError.Receive());
-            }
-            else {
-                self.emitError(new AbraxasError.Server(data.args.errorcode,body));
-            }
-        });
-    });
-
-    this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
+    this.options = options;
     var self = this;
-    this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
-        if (err) return;
-        if (data.args.option == 'exceptions') {
-            self.feature.exceptions = true;
-        }
+    this.connections = options.servers.map(function(connect){
+        var C = new ClientReconnect(self.options,connect);
+        C.on('disconnect', function (C) { self.emit('disconnect',self,C)  });
+        C.on('error', function (error,C) { self.emit('connection-error',error,self,C)  });
+        C.on('connect', function (C) { self.emit('connect',self,C) });
+        return C;
     });
 
-    if (options.streaming) {
-        this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
-        var trace = AbraxasError.trace(AbraxasClient);
-        this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
-            if (err) {
-                if (err.code == 'UNKNOWN_OPTION') {
-                    self.emitError(trace.withError(new AbraxasError.NoStreaming));
-                }
-                else {
-                    self.emitError(trace.withError(err));
-                }
-                return;
-            }
-            if (data.args.option == 'streaming') {
-                self.feature.streaming = true;
-            }
-        });
-    }
-
-    require('./worker').construct.call(this);
+    workerConstruct.call(this);
+    events.EventEmitter.call(this);
 }
-util.inherits( AbraxasClient, AbraxasSocket );
+util.inherits( AbraxasClient, events.EventEmitter );
 
 extend( AbraxasClient.prototype, require('./echo') );
-extend( AbraxasClient.prototype, require('./admin') );
 extend( AbraxasClient.prototype, require('./client-jobs') );
 extend( AbraxasClient.prototype, require('./worker').Worker );
+extend( AbraxasClient.prototype, require('./admin') );
 
-AbraxasClient.connect = function(options,callback) {
-    if (!callback && typeof options == 'function') {
-        callback = options; options = null;
-    }
+AbraxasClient.connect = function(options,onConnect) {
     if (!options) options = {};
-    if (!options.path) {
-      if (!options.host) options.host = '127.0.0.1';
-      if (!options.port) options.port = 4730;
+
+    if (options.servers) {
+        options.servers = options.servers.map(function(server){
+            if (server instanceof Function) return server;
+            var connectopts = {};
+            if (typeof server == 'string') {
+                var chunks = server.split(':');
+                connectopts.host = chunks[0]; connectopts.port = chunks[1];
+                if (!connectopts.host) connectopts.host = '127.0.0.1';
+                if (!connectopts.port) connectopts.port = 4730;
+            }
+            else {
+                connectopts = server;
+                if (! server.path) {
+                    if (!connectopts.host) connectopts.host = '127.0.0.1';
+                    if (!connectopts.port) connectopts.port = 4730;
+                }
+            }
+            var connect = function (cb) { return net.connect(connectopts, cb) }
+            connect.options = connectopts;
+            return connect;
+        });
     }
-    options.socket = net.connect(options, callback);
-    return new AbraxasClient(options,callback);
+    else {
+        if (options.host || !options.path) {
+            if (!options.host) options.host = '127.0.0.1';
+            if (!options.port) options.port = 4730;
+        }
+        var connect = function (cb) { return net.connect(options, cb) }
+        connect.options = options;
+        options.servers = [connect];
+    }
+    var client = new AbraxasClient(options);
+    if (options.connectTimeout) {
+        var timeout = setTimeout(function(){
+            client.emit('error',new AbraxasError.ConnectTimeout, client);
+        }, options.connectTimeout);
+        client.once('connect', function () { clearTimeout(timeout) });
+    }
+    if (onConnect) {
+        var keepalive = setInterval(emptyFunction,86400);
+        var onError = function(E,client){
+            clearInterval(keepalive);
+            client.removeListener('connect', onSuccess);
+            onConnect(E);
+        }
+        var onSuccess = function(client) {
+            clearInterval(keepalive);
+            client.removeListener('error', onError);
+            onConnect(null, client);
+        }
+        client.once('connect', onSuccess);
+        client.once('error', onError);
+    }
+    client.setMaxListeners(0);
+    return client;
 }
 
-AbraxasClient.prototype.newTask = function (callback,options) {
-    if (!options) options = {};
+AbraxasClient.prototype.startTask = function (callback,options,next) {
+    if (options instanceof Function) {
+        next = options;
+        options = null;
+    }
+    if (! options) options = {};
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
-    if (options.encoding == 'buffer') delete options.encoding;
+    var submitTimeout = options.submitTimeout != null ? options.submitTimeout : this.options.submitTimeout;
+    var responseTimeout = options.responseTimeout != null ? options.responseTimeout : this.options.responseTimeout;
     var task = new ClientTask(callback,options);
-    this.ref();
-    var self = this;
-    var connectionClose = function (had_error){
-        task.acceptError(new AbraxasError.Socket('connection '+(had_error?'error':'closed')));
-    };
-    this.connection.once('close', connectionClose);
-    task.once('close',function(){
-        self.unref();
-        self.connection.removeListener('close', connectionClose);
+    if (responseTimeout) task.setResponseTimeout(responseTimeout);
+    this.getConnection(submitTimeout,function(err,conn) {
+        if (err) return task.acceptError(err);
+        task.setConnection(conn);
+        next(task);
     });
     return task;
+}
+
+AbraxasClient.prototype.getConnectedServers = function () {
+    return this.connections.filter(function(C){ return C.socket });
+}
+
+AbraxasClient.prototype.getConnection = function (timeout,callback) {
+    if (!timeout) timeout = this.options.timeout;
+    var connections = this.getConnectedServers().sort(function(A,B){ return A.lastused < B.lastused });
+    if (connections.length) {
+        var connection = connections[0];
+        connection.lastused = new Date();
+        process.nextTick(function(){ callback(null,connection.socket) });
+        return;
+    }
+    var timer;
+    var keepalive;
+    if (timeout) {
+        timer = setTimeout(function () { callback(new AbraxasError.SubmitTimeout()) }, timeout);
+    }
+    else {
+        keepalive = setInterval(emptyFunction, 86400);
+    }
+
+    this.once('connect',function (client,C){
+        if (timer) { clearTimeout(timer) }
+        if (keepalive) { clearInterval(keepalive) }
+        C.lastused = new Date();
+        callback(null, C.socket);
+    });
+}
+
+AbraxasClient.prototype.disconnect = function () {
+    this.connections.forEach(function(C) {
+        C.disconnect();
+    });
 }

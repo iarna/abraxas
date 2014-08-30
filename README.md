@@ -9,7 +9,7 @@ Synopsis
 
 ```javascript
 var Gearman = require('abraxas');
-var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncoding:'utf8' });
+var client = Gearman.Client.connect({ servers: ['127.0.0.1:4730'], defaultEncoding:'utf8' });
 
 client.registerWorker("toUpper", function(task) {
     // Tasks can be used as promises.
@@ -74,20 +74,38 @@ API
 ```javascript
 var Gearman = require('abraxas');
 var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncoding:'utf8' });
+var client = Gearman.Client.connect({ servers:[{host:'127.0.0.1', port:4730}], defaultEncoding:'utf8' });
+var client = Gearman.Client.connect({ servers:['127.0.0.1:4730'], defaultEncoding:'utf8' });
 ```
 
 * **var client = Gearman.Client([options][,callback])**
 
   **options** (optional) is an object with properties of:
 
-  * *host* (default: 127.0.0.1)
-  * *port* (default: 4730)
+  * Connection options:
+
+    * *host* (default: 127.0.0.1)
+    * *port* (default: 4730)
+
+    OR
+
+    * *servers* -- An array of gearman servers to connect to. These can either
+      be objects with host and port (and any of the other options below, to set
+      them per-server), or a string of 'host:port'.
+
   * *streaming* (default: false) -- Requests the Abraxas server's streaming
     mode. Makes workers streaming data back over WORK_DATA safe. If you
     request this with the C++ gearmand you'll get a connection error.
   * *defaultEncoding* (default: buffer) -- The stream encoding to use for
     client and worker payloads, unless otherwise specified.
-  * *maxJobs* (default: 1) -- The maximum number of jobs to handle at once.
+  * *maxJobs* (default: 1) -- The maximum number of simultaneous jobs
+    that workers on this connection will execute. This is the concurrency tuning
+    paramter for registerWorker. This has no effect on the number of jobs handled
+    via submitJob.
+  * *submitTimeout* (default: ∞) Default time to wait for a gearman server
+    to become available when submitting a job. Jobs who fail with this
+    timeout are guaranteed to not have been submitted to any servers or workers.
+  * *responseTimeout* (default: ∞) Default time to wait for a job to complete.
   * *debug* -- If true, unknown or unexpected packets will be logged with
     console.error.  You can achieve the same result by listening for the
     'unknown-packet' event.
@@ -97,10 +115,25 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   * *packetDump* -- If true, behaves the same as trafficDump but instead emits
     the parsed packets.
 
-  **callback** (optional) will be called once the socket is established by
-  `net.connect`.  There is, however, no requirement that you wait for the
+  **callback** (optional) will be called once a connection is established to
+  any of the servers. There is, however, no requirement that you wait for the
   connection-- any commands issued prior to the connection being established
   will be buffered.
+
+* **Reconnection and Multiple Servers**
+
+Abraxas will begin attempting to connect to the servers its started with
+immediately.  If a connection drops, it will attempt to reconnect
+automatically.  Connections back off following the fibonacci sequence with a
+maximum delay of 10 seconds between retries and a randomization factor of
+15%.
+
+Details on how each command handles multiple server connections is detailed
+in the command's documentation.  Generally however, worker related commands
+go to ALL available servers and all future servers.  As such, worker related
+commands return immediately.  By contrast, client related commands go to ANY
+ONE server and if no server is available they'll wait for a connection to be
+established.
 
 * **Streaming Mode**
 
@@ -122,26 +155,23 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
   * Submitting uniqueid foreground jobs is an error and your job will
     immediately fail without being submitted.
 
-* **client.connected**
-
-  A property, true when the client is connected.
-
 * **client.on('connect', function(client) { ... })**
 
-  Called after a connection is established
+  Called after a connection is established. NOTE: This can and will be
+  called more than once.
 
 * **client.on('disconnect', function(client) { ... })**
 
   Called after the connection drops for any reason.
 
+* **client.on('connection-error', function(error,client) { ... })**
+
+  Called any time there's an error in one of the connections. This is not
+  fatal and connections will be automatically reestablished.
+
 * **client.disconnect()**
 
   Disconnects the client after flushing the current buffer.
-
-* **client.destroy()**
-
-  Calls the socket's destroy method, disconnecting the client immediately,
-  ignoring the buffer.
 
 * **var task = client.echo([options][,data][,callback])**
 
@@ -166,7 +196,8 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
 * **var task = client.getStatus(jobid[,callback])**
 
   Fetches the status of a running job. This task is read only-- if you read
-  from it as a stream, it will emit the status object.
+  from it as a stream, it will emit the status object.  This runs against
+  all connected servers.
 
   **callback** (optional) is a *function (err, status)* that will be called
   with the result from the server; see details on the **status** object
@@ -174,8 +205,8 @@ var client = Gearman.Client.connect({ host:'127.0.0.1', port:4730, defaultEncodi
 
   The **status** object has the following properties:
 
-  * *known* 1 if the job is known
-  * *running* 1 if the job is currently running
+  * *known* Number of servers that know about the job, typically 1 or 0.
+  * *running* Number of servers that are running the job, typically 1 or 0.
   * *complete* Percent job completion, if the job has been updating its status.
 
 * **client.setClientId(id)**
@@ -219,10 +250,13 @@ in the promise being rejected.
 * **var task = client.submitJob(func[,options][,data][,callback])**
 
   Submit a job to the gearman server-- write to the `task` to send your
-  payload.  As described above, the task can be read from to retreive your
-  result, or you can use it as a promise with `.then` to get its value.  Tasks
-  can also emit `error`, `warn` and `status` events, see the tasks section for
-  details.
+  payload.  As described above, the task can be read from as a stream to
+  retreive your result, or you can use it as a promise with `.then` to get
+  its value.  Tasks can also emit `error`, `warn` and `status` events, see
+  the tasks section for details.
+
+  Jobs are submitted to only one server. The server to use is selected on a
+  round-robin basis amongst active connections.
 
   **func** The name of the function you want to call.
 
@@ -250,6 +284,9 @@ in the promise being rejected.
   job will still be executed.  The result of the task is the `jobid` the
   task was created with.
 
+  Jobs are submitted to only one server. The server to use is selected on a
+  round-robin basis amongst active connections.
+
   **func** The name of the function you want to call.
 
   **options** (optional) is an object with properties of:
@@ -271,7 +308,10 @@ in the promise being rejected.
 
 * **var task = client.submitJobAt(func,date[,options][,data][,callback])**
 
-  Submit a background job to happen at a specific time.
+  EXPERIMENTAL. Submit a background job to happen at a specific time.
+
+  Jobs are submitted to only one server. The server to use is selected on a
+  round-robin basis amongst active connections.
 
   **func** The name of the function you want to call.
 
@@ -295,6 +335,9 @@ in the promise being rejected.
   ***WARNING: Not implemented in any existing gearman server, but in the protocol documentation.***
 
   Submit a background job to happen on a schedule
+
+  Jobs are submitted to only one server. The server to use is selected on a
+  round-robin basis amongst active connections.
 
   **func** The name of the function you want to call.
 
@@ -327,6 +370,9 @@ in the promise being rejected.
   client submits a job.  Reading from the task will return the payload. 
   Writing to the task will send that as the response to the client.  (As
   WORK_DATA and WORK_COMPLETE packets.)
+
+  Functions will be registered on ALL servers. Any servers connected or
+  reconnected to later will have functions reregistered with them.
 
   If you emit an error event this will result in a WORK_EXCEPTION packet if
   supported by the server, otherwise it will emit a WORK_WARNING followed by
@@ -381,32 +427,45 @@ in the promise being rejected.
     * *workers* How many workers are available to run jobs. (Sometimes low,
       due to workers being able to handle multiple jobs simultaneously.)
 
+* **var task = client.maxqueue(func[,maxsize][,callback])**
+
+  Sets the maximum number of jobs that may be queued at one time for a
+  specific function. Like other worker functions, this is sent to all
+  server connections, current and future.
+
+  **func** is the function to set or clear this limit of.
+  **maxsize** (default: unlimited) is the maximum number of jobs to be queued at a time for this funciton.
+  **callback** (optional) is a `function (err)`
+
 * **client.unregisterWorker(func)**
 
-  Notifies the server that we are no longer handling requests for the **func** job.
+  Notifies all servers that we are no longer handling requests for the **func** job.
 
   **func** The name of the function unregister.
 
 * **client.forgetAllWorkers()**
 
-  Tells the server that we are no longer handling any functions at all.
+  Tells all the server that we are no longer handling any functions at all.
 
 ### Admin
 
 * **var task = client.status([callback])**
 
-  Fetches the current status of all functions the gearman server is aware
-  of. It is resolved with a *functionstatus* array.
+  Fetches the current status of all functions that all connected gearman
+  servers are aware of. If no gearman servers are connected then it will
+  immediately return an empty object. It is resolved with a *functionstatus* object.
 
   **callback** (optional) is a `function (functionstatus)`.
 
-  The *functionstatus* array is made of objects with the properties:
+  The *functionstatus* object is keyed on *function* name and has values
+  that are objects with the properties:
   
   * *function* - The name of a function.
   * *inqueue* The number of jobs in queue for this function.
   * *running* How many of those jobs are currently running.
-  * *workers* How many workers are available to run jobs. (Sometimes low,
-    due to workers being able to handle multiple jobs simultaneously.)
+  * *workers* How many worker connections are available to run jobs.
+    (Sometimes lower than running, due to workers being able to handle
+    multiple jobs per connection.)
 
 * **var task = client.workers([callback])**
 
@@ -417,31 +476,32 @@ in the promise being rejected.
 
   The *workerlist* array is made up of objects with the properties:
 
+  * *server* An object with either host and port properties or a path
+    property describing how we connected to the server this worker is
+    associated with.
   * *fd* The file descriptor of this connection on the server.
   * *ip* The ip address that the connection came from.
   * *clientid* The client id of the connection, if any. Defaults to null.
   * *functions* An array of all of the function names.
 
-* **var task = client.maxqueue(func[,maxsize][,callback])**
-
-  Sets the maximum number of jobs that may be queued at one time for a specific function.
-
-  **func** is the function to set or clear this limit of.
-  **maxsize** (default: unlimited) is the maximum number of jobs to be queued at a time for this funciton.
-  **callback** (optional) is a `function (err)`
-
 * **var task = client.shutdown([gracefully][,callback])**
 
-  Requests that the server shutdown.
+  Requests that all connected servers shutdown. If you wanted to shutdown a
+  bunch of gearman servers you might do this:
+
+```javascript
+['server1:port','server2:port','server3:port'].forEach(function(server){
+    Gearman.Client.connect({servers:[server]},function(err,client) {
+        client.shutdown(true,function(err){
+            if (err) console.error(err);
+            client.disconnect();
+        });
+    });
+});
+```
 
   **gracefully** (default: false) If true, stops listening for new connections but waits for running jobs to complete before shutting down.
   **callback** (optional) is a `function (err)`
-
-* **var task = client.version([callback])**
-
-  Requests the server version.  Many servers just return a number, so this isn't very comparable between implementations.
-
-  **callback** (optional) is a `function (err,version)`
 
 * **var task = client.getpid([callback])**
 

@@ -5,6 +5,7 @@ var stream = require('readable-stream');
 var util = require('util');
 var WorkerTask = require('./task-worker');
 var ClientTask = require('./task-client');
+var emptyFunction = require('emptyfunction');
 
 exports.__construct = function (init) {
     this._workers = {};
@@ -116,6 +117,7 @@ Worker.unregisterWorker = function (func) {
     }
     this._worker(func).handler = null;
     if (-- this._workersCount == 0) {
+        clearInterval(this.keepAlive);
         this.getConnectedServers().forEach(function(conn) {
             conn.socket.unhandleJobAssign();
         });
@@ -132,6 +134,7 @@ Worker.registerWorker = function (func, options, handler) {
         this.emit('warn', new Error('Redefining worker for '+func));
     }
     else if (this._workersCount++ == 0) {
+        this.keepAlive = setInterval(emptyFunction,86400);
         this.getConnectedServers().forEach(function(conn) {
             conn.socket.handleJobAssign(function(job) {
                 self._grabbingJob --;
@@ -169,6 +172,7 @@ Worker.forgetAllWorkers = function () {
     if (! this._workersCount) return;
     this._workers = {};
     this._workersCount = 0;
+    clearInterval(this.keepAlive);
     this.getConnectedServers().forEach(function(conn) {
         conn.socket.unhandleJobAssign();
         conn.socket.resetAbilities();

@@ -151,7 +151,7 @@ ClientConnection.prototype.echo = function (data, handler) {
 
 ClientConnection.prototype.getStatus = function (jobid,handler) {
     this.packets.acceptByJobOnce('STATUS_RES', jobid, handler);
-    this.socket.write({kind:'request',type:packet.types['STATUS_REQ'],args:{job:jobid}});
+    this.socket.write({kind:'request',type:packet.types['GET_STATUS'],args:{job:jobid}});
 }
 
 ClientConnection.prototype.submitJob = function(func,data,options,handler) {

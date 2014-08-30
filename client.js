@@ -7,6 +7,7 @@ var ClientTask = require('./task-client');
 var streamToBuffer = require('./stream-to-buffer');
 var AbraxasError  = require('./errors');
 var ClientReconnect = require('./client-reconnect');
+var emptyFunction = require('emptyfunction');
 
 var workerConstruct = require('./worker').__construct;
 
@@ -73,11 +74,14 @@ AbraxasClient.connect = function(options,onConnect) {
         client.once('connect', function () { clearTimeout(timeout) });
     }
     if (onConnect) {
+        var keepalive = setInterval(emptyFunction,86400);
         var onError = function(E,client){
+            clearInterval(keepalive);
             client.removeListener('connect', onSuccess);
             onConnect(E);
         }
         var onSuccess = function(client) {
+            clearInterval(keepalive);
             client.removeListener('error', onError);
             onConnect(null, client);
         }
@@ -120,10 +124,18 @@ AbraxasClient.prototype.getConnection = function (timeout,callback) {
         process.nextTick(function(){ callback(null,connection.socket) });
         return;
     }
-    var timer = !timeout ? null : setTimeout(function () { callback(new AbraxasError.SubmitTimeout()) }, timeout);
+    var timer;
+    var keepalive;
+    if (timeout) {
+        timer = setTimeout(function () { callback(new AbraxasError.SubmitTimeout()) }, timeout);
+    }
+    else {
+        keepalive = setInterval(emptyFunction, 86400);
+    }
 
     this.once('connect',function (client,C){
-        if (timer) clearTimeout(timer);
+        if (timer) { clearTimeout(timer) }
+        if (keepalive) { clearInterval(keepalive) }
         C.lastused = new Date();
         callback(null, C.socket);
     });

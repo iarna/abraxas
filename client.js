@@ -145,4 +145,5 @@ AbraxasClient.prototype.disconnect = function () {
     this.connections.forEach(function(C) {
         C.disconnect();
     });
+    this.forgetAllWorkers();
 }

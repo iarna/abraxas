@@ -13,6 +13,7 @@ var WorkerTask = module.exports = function WorkerTask(payload,options) {
     this.client    = options.client;
     this.socket    = options.socket;
     this.lastChunk = null;
+    this.payload   = null; // The payload value (non-stream)
     this.length    = payload.length;
     if (! options.encoding) options.encoding = this.options.defaultEncoding;
     if (options.encoding == 'buffer') delete options.encoding;

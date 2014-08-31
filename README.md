@@ -12,18 +12,20 @@ var Gearman = require('abraxas');
 var client = Gearman.Client.connect({ servers: ['127.0.0.1:4730'], defaultEncoding:'utf8' });
 
 client.registerWorker("toUpper", function(task) {
-    // Tasks can be used as promises.
-    // Return values can be plain values, promises or streams.
-    return task.then(function(payload) {
-        return payload.toUpperCase();
-    });
+    return task.payload.toUpperCase();
+});
+
+// or
+
+client.registerWorker("toUpper", function(task) {
+    task.end(task.payload.toUpperCase());
 });
 
 // or
 var through = require('through2');
-client.registerWorker("toUpper", function(task) {
-    // Tasks can be used as bidirectional pipes. Read the payload from
-    // the client, write the result back to the client.
+client.registerWorkerStream("toUpper", function(task) {
+    // Streaming workers task's can be used as bidirectional pipes. Read the
+    // payload from the client, write the result back to the client.
     task.pipe(through(function(data,enc,done) { this.push(data.toUpperCase(),enc); done() })).pipe(task);
 });
 
@@ -364,12 +366,21 @@ in the promise being rejected.
 
 ### Worker
 
+* var worker = **client.registerWorkerStream(func[,options],workercb)**
 * var worker = **client.registerWorker(func[,options],workercb)**
 
   Register a handler for **func**.  **workercb** is passed a task when a
-  client submits a job.  Reading from the task will return the payload. 
-  Writing to the task will send that as the response to the client.  (As
-  WORK_DATA and WORK_COMPLETE packets.)
+  client submits a job.
+
+  
+  With `registerWorker`, the task will have a **payload** property. With
+  `registerWorkerStream` the task a stream that can be read from in the
+  usual ways to get the payload. See the section on Tasks for details.
+
+  Writing to the task will send that as the response to the client. What's
+  written will be buffered and sent as a WORK_COMPLETE packet, unless you
+  connected with the streaming option, in which case WORK_DATA packets
+  will be sent as data is written.
 
   Functions will be registered on ALL servers. Any servers connected or
   reconnected to later will have functions reregistered with them.

@@ -5,11 +5,9 @@ Gearman.Client.connect({connectTimeout: 20, servers: ['localhost','localhost:147
     if (err) throw err;
     var start = process.hrtime();
     gm.registerWorker('slow',function (task) {
-        task.then(function(V){
-            setTimeout(function(){
-                task.end(V);
-            }, 500);
-        });
+        setTimeout(function(){
+            task.end(task.payload);
+        }, 500);
     });
     gm.submitJob('slow',{submitTimeout: 250}, 'test', function (err, value) {
         if (err) throw err;

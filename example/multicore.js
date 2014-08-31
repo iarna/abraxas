@@ -1,5 +1,5 @@
 "use strict";
-var Gearman = require('abraxas');
+var Gearman = require('../index');
 var cluster = require('cluster');
 var numCPUs = require('os').cpus().length;
 var concurrency = 10;
@@ -21,9 +21,7 @@ if (cluster.isMaster) {
 else {
     var worker = Gearman.Client.connect(options);
     worker.registerWorker("add", function (task) {
-        task.then(function() {
-            var num = nums.split(/ /).map(function(N){ return N|0 });
-            task.end(num[0] + num[1]);
-        });
+        var num = task.payload.split(/ /).map(function(N){ return N|0 });
+        task.end(num[0] + num[1]);
     });
 }

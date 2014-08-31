@@ -129,6 +129,16 @@ Worker.unregisterWorker = function (func) {
 
 Worker.registerWorker = function (func, options, handler) {
     if (!handler) { handler=options; options={} }
+    this.registerWorkerStream(func,options,function (task) {
+        return task.then(function(payload) {
+            task.payload = payload;
+            return handler(task);
+        });
+    });
+}
+
+Worker.registerWorkerStream = function (func, options, handler) {
+    if (!handler) { handler=options; options={} }
     var self = this;
     if (this.isRegistered(func)) {
         this.emit('warn', new Error('Redefining worker for '+func));

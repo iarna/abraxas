@@ -28,9 +28,9 @@
   "scripts": {
     "test": "tape $(find test -name '[^.]*.js')"
   },
-  "engineStrict": true,
+  "engineStrict": false,
   "engines": {
-    "node": "^0.10.0"
+    "node": "~0.10.0"
   },
   "repository": {
     "type": "git",

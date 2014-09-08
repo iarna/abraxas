@@ -66,13 +66,3 @@ ClientReconnect.prototype._connectionReady = function (client) {
     client.setMaxListeners(0);
     self.emit('connect',self);
 }
-
-for (var name in ClientConnection.prototype) { (function(name) {
-    if (name.substr(0,1)=='_') return;
-    var func = Promise.prototype[name];
-    if (!(func instanceof Function)) return;
-    ClientReconnect.prototype[name] = function () {
-        if (!this.socket) throw Error("Can't proxy "+name+" when connection doesn't have valid socket");
-        return func.apply(this.socket,arguments);
-    }
-})(name) }

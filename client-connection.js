@@ -32,7 +32,6 @@ var ClientConnection = module.exports = function (options,callback) {
     var init = cvar(callback);
 
     init.begin();
-    this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
     this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
         init.end();
         if (err) return;
@@ -40,10 +39,10 @@ var ClientConnection = module.exports = function (options,callback) {
             self.feature.exceptions = true;
         }
     });
+    this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'exceptions'}});
 
     if (options.streaming) {
         init.begin();
-        this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
         var trace = AbraxasError.trace(ClientConnection);
         this.packets.acceptSerialWithError('OPTION_RES', function (err,data) {
             init.end();
@@ -60,6 +59,7 @@ var ClientConnection = module.exports = function (options,callback) {
                 self.feature.streaming = true;
             }
         });
+        this.socket.write({kind:'request',type:packet.types['OPTION_REQ'],args:{option:'streaming'}});
     }
 }
 util.inherits( ClientConnection, AbraxasSocket );
@@ -263,8 +263,8 @@ ClientConnection.prototype.handleJobResult = function (task,func,trace) {
 }
 
 ClientConnection.prototype.adminSingleResult = function (command, handler) {
-    this.packets.acceptSerialAdminWithError('ADMIN:ok', handler);
     this.socket.write({kind:'admin',type:packet.adminTypes['line'],args:{line:command}});
+    this.packets.acceptSerialAdminWithError('ADMIN:ok', handler);
 }
 
 ClientConnection.prototype._handleNextQueuedTable = function () {

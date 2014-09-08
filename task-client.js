@@ -77,14 +77,20 @@ ClientTask.prototype.acceptError = function (error) {
 ClientTask.prototype.acceptResult = function (result) {
     if (this.completed) return;
     if (this.responseTimeout) clearTimeout(this.responseTimeout);
-    this.completed = true;
     if (result == null) {
+        this.completed = true;
         this.reader.end();
     }
     else if (result.pipe) {
         result.pipe(this.reader);
+        var self = this;
+        result.on('error',function (err){ this.reader.emit(err) });
+        result.on('end',function(){
+            self.completed = true;
+        });
     }
     else {
+        this.completed = true;
         this.reader._writableState.objectMode = true;
         this.reader._readableState.objectMode = true;
         this.reader.write(result);

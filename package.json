@@ -38,6 +38,7 @@
     "url": "git://github.com/iarna/abraxas.git"
   },
   "devDependencies": {
+    "stream-array": "^0.1.3",
     "tape": "^2.13.4"
   },
   "directories": {

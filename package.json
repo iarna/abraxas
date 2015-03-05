@@ -27,7 +27,7 @@
   "main": "index.js",
   "license": "BSD",
   "scripts": {
-    "test": "tape $(find test -name '[^.]*.js')"
+    "test": "tape test/*.js test/*/*.js"
   },
   "engineStrict": true,
   "engines": {

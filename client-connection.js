@@ -133,6 +133,7 @@ ClientConnection.prototype.workWarning = function (jobid,data) {
 ClientConnection.prototype.workException = function (jobid,data) {
     if (this.feature.exceptions) {
         this.socket.write({kind:'request',type:packet.types['WORK_EXCEPTION'], args:{job:jobid}, body:data});
+        this.socket.write({kind:'request',type:packet.types['WORK_FAIL'], args:{job:jobid}, body:data});
     }
     else {
         this.workWarning(jobid,data);

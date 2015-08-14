@@ -40,7 +40,7 @@ exports.__construct = function (init) {
             self.dispatchWorker(job,conn.socket);
         });
         if (self._clientId) {
-            conn.socket.setClientId(id);
+            conn.socket.setClientId(self._clientId);
         }
         for (var func in self._workers) {
             var worker = self._workers[func];

@@ -133,9 +133,7 @@ Worker.registerWorker = function (func, options, handler) {
         return task.then(function(payload) {
             task.payload = payload;
             return handler(task);
-        }).catch(function(exception) {
-            task.error(exception);
-        })
+        });
     });
 }
 

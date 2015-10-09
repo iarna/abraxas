@@ -27,7 +27,7 @@
   "main": "index.js",
   "license": "ISC",
   "scripts": {
-    "test": "tape $(find test -name '[^.]*.js')"
+    "test": "tap test/*.js test/functional/*.js"
   },
   "engineStrict": true,
   "engines": {
@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "stream-array": "^1.1.1",
-    "tape": "^2.13.4"
+    "tap": "^2.2.0"
   },
   "directories": {
     "test": "test"

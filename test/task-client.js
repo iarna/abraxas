@@ -1,5 +1,5 @@
 "use strict";
-var test = require('tape');
+var test = require('tap').test;
 var ClientTask = require('../task-client');
 var streamify = require('stream-array');
 var concat = require('concat-stream');
@@ -16,10 +16,10 @@ var testAcceptResultCallback = function (data,useStream) {
             resultValue = value;
         }, {encoding: 'utf8'});
         task.acceptResult(useStream ? streamify([data]) : data);
-        setImmediate(function() {
+        setTimeout(function() {
             t.is(resultError, null, 'No error');
             t.is(resultValue, data, 'Passed through data');
-        });
+        }, 100);
     }
 }
 var testAcceptResultPromise = function (data,useStream) {
@@ -30,10 +30,10 @@ var testAcceptResultPromise = function (data,useStream) {
         var task = new ClientTask(null,{encoding: 'utf8'});
         task.acceptResult(useStream ? streamify([data]) : data);
         task.then(function (value) { resultValue = value }, function (error) { resultError = error });
-        setImmediate(function() {
+        setTimeout(function() {
             t.is(resultError, void 0, 'No error');
             t.is(resultValue, data, 'Passed through data');
-        });
+        }, 100);
     }
 }
 var testAcceptResultStream = function (data,useStream) {
@@ -45,10 +45,10 @@ var testAcceptResultStream = function (data,useStream) {
         task.acceptResult(useStream ? streamify([data]) : data);
         task.pipe(concat(function(value) { resultValue = value }));
         task.on('error', function (err) { resultError = error });
-        setImmediate(function() {
+        setTimeout(function() {
             t.is(resultError, void 0, 'No error');
             t.is(resultValue, data, 'Passed through data');
-        });
+        }, 100);
     }
 }
 
@@ -76,11 +76,11 @@ var testPrepareBody = function (options,body,assertions) {
                 did.cbWithValue = true;
             }
         });
-        setImmediate(function () {
+        setTimeout(function () {
             assertions.forEach(function(v) {
                 t.ok( did[v], 'prepared body with '+v );
             });
-        });
+        }, 100);
     }
 }
 

@@ -1,5 +1,5 @@
 "use strict";
-var test = require('tape');
+var test = require('tap').test;
 var Gearman = require('./lib/loopback');
 
 Gearman.Server.listen();

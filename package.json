@@ -25,7 +25,7 @@
     "util-extend": "^1.0.1"
   },
   "main": "index.js",
-  "license": "BSD",
+  "license": "ISC",
   "scripts": {
     "test": "tape $(find test -name '[^.]*.js')"
   },

@@ -13,7 +13,7 @@
   "dependencies": {
     "backoff": "^2.4.0",
     "bluebird": "^2.10.2",
-    "concat-stream": "^1.4.6",
+    "concat-stream": "^1.5.1",
     "duplex-combination": "^1.2.0",
     "emptyfunction": "0.0.0",
     "gearman-packet": "^1.0.3",

@@ -16,7 +16,7 @@
     "concat-stream": "^1.4.6",
     "duplex-combination": "^1.2.0",
     "emptyfunction": "0.0.0",
-    "gearman-packet": "^1.0.2",
+    "gearman-packet": "^1.0.3",
     "isa-stream": "^1.0.1",
     "readable-stream": "^1.1.13",
     "shallow-copy": "0.0.1",

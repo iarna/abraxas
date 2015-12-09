@@ -422,6 +422,10 @@ in the promise being rejected.
     strings.)
   * *task.end(data)* Completes the task, sending a WORK_COMPLETE packet with
     `data`.  `data` can be a buffer, string or stream.
+  * *task.error(data)* Fails the task, sending a WORK_FAIL packet with
+    `data`.  `data` can be a buffer, string or stream. Also sends either a
+    WORK_EXCEPTION or WORK_WARNING with he same data before WORK_FAIL
+    depending on wether the server supports the exception extension.
 
   The worker object returned has the property:
 

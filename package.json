@@ -12,7 +12,7 @@
   "version": "2.1.6",
   "dependencies": {
     "backoff": "^2.4.0",
-    "bluebird": "^2.10.2",
+    "bluebird": "^3.1.1",
     "concat-stream": "^1.5.1",
     "duplex-combination": "^1.2.0",
     "emptyfunction": "0.0.0",

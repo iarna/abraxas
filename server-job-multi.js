@@ -7,7 +7,7 @@ var through = require('through2');
 var SingleJob = require('./server-job-single');
 
 var MultiJob = module.exports = function (id, func, uniqueid, priority, body) {
-    Job.call(this, id, func, priority, body);
+    SingleJob.call(this, id, func, priority, body);
     this.uniqueid = uniqueid;
     this.output = [];
 }

@@ -29,7 +29,7 @@ exports.__construct = function (init) {
 
         conn.socket.handleNoOp(function(data) {
             conn.socket.wakeup();
-            if (self.options.maxJobs > (self._activeJobsCount+self._grabbingJob)) {
+            while (self.options.maxJobs > (self._activeJobsCount+self._grabbingJob)) {
                 self._grabbingJob ++;
                 conn.socket.grabJob();
             }

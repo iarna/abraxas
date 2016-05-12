@@ -129,7 +129,7 @@ Worker.unregisterWorker = function (func) {
 
 Worker.registerWorker = function (func, options, handler) {
     if (!handler) { handler=options; options={} }
-    this.registerWorkerStream(func,options,function (task) {
+    return this.registerWorkerStream(func,options,function (task) {
         return task.then(function(payload) {
             task.payload = payload;
             return handler(task);

@@ -1,6 +1,8 @@
 Abraxas
 -------
 
+[![Join the chat at https://gitter.im/iarna/abraxas](https://badges.gitter.im/iarna/abraxas.svg)](https://gitter.im/iarna/abraxas?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 A gearman client, worker and server module implemented on top of gearman-protocol
 for full end-to-end streaming support.
 

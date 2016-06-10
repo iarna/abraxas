@@ -192,7 +192,7 @@ Server.prototype.grabJob = function (client,unique) {
     var jobs = Object.keys(this.jobs).map(function(jobid){
         return self.jobs[jobid]
     }).filter(function(job) {
-        return self.workersCount[job.function] && !job.worker;
+        return client.workers[job.function] && !job.worker;
     }).sort(function(A,B) {
         if (A.priority > B.priority) return -1;
         if (A.priority < B.priority) return 1;

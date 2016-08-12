@@ -15,7 +15,7 @@
     "bluebird": "^3.1.1",
     "concat-stream": "^1.5.1",
     "duplex-combination": "^1.2.0",
-    "emptyfunction": "0.0.0",
+    "emptyfunction": "^1.0.0",
     "gearman-packet": "^1.0.3",
     "isa-stream": "^1.0.1",
     "readable-stream": "^2.0.4",

@@ -1,3 +1,8 @@
+## 2.1.10 2016-09-14
+  - Fix bug that stopped the server implemention of `getStatus` from working at all. (@nponeccop)
+  - Fix bug during job assignment where it was trying to use
+    server.workersCount instead of client.workers. (@nponeccop)
+
 ## 2.1.9 2016-05-11
 
   - Bug fixes

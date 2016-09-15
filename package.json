@@ -29,10 +29,6 @@
   "scripts": {
     "test": "tap test/*.js test/functional/*.js"
   },
-  "engineStrict": true,
-  "engines": {
-    "node": ">= 0.10.0"
-  },
   "repository": {
     "type": "git",
     "url": "git://github.com/iarna/abraxas.git"

@@ -113,7 +113,7 @@ var ServerConnection = module.exports = function (options) {
         });
     });
     this.packets.accept('GET_STATUS', function (data) {
-        self.emit('get-status',data.args.job,client);
+        self.emit('get-status',data.args.job,self);
     });
     this.packets.accept('GRAB_JOB', function (data) {
         self.status='active';

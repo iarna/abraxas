@@ -130,6 +130,7 @@ Server.prototype.withJob = function(client,jobid,callback,nojobcallback) {
 }
 
 Server.prototype.getStatus = function (jobid,client) {
+    var status
     this.withJob(client,jobid,function(job) {
         status = job.getStatus();
         status.known = 1;

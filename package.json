@@ -37,4 +37,31 @@
     "stream-array": "^1.1.1",
     "tap": "^7.1.2"
   },
+  "files": [
+    "errors.js",
+    "example.js",
+    "index.js",
+    "echo.js",
+    "packet-handler.js",
+    "server-connection.js",
+    "server-job-background.js",
+    "server-job-multi.js",
+    "debug-packet.js",
+    "server-job-single.js",
+    "cvar.js",
+    "server-job.js",
+    "client.js",
+    "server.js",
+    "client-reconnect.js",
+    "socket.js",
+    "client-jobs.js",
+    "stream-replay.js",
+    "client-connection.js",
+    "stream-to-buffer.js",
+    "task-client.js",
+    "admin.js",
+    "task.js",
+    "task-worker.js",
+    "worker.js"
+  ]
 }

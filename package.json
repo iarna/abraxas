@@ -37,7 +37,4 @@
     "stream-array": "^1.1.1",
     "tap": "^7.1.2"
   },
-  "directories": {
-    "test": "test"
-  }
 }

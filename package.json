@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "stream-array": "^1.1.1",
-    "tap": "^6.3.2"
+    "tap": "^7.1.2"
   },
   "directories": {
     "test": "test"
